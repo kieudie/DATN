@@ -1,0 +1,7 @@
+node_modules
+dist
+.git
+mysql/dockers/mysql
+redis/data
+npm-debug.log
+yarn-error.log

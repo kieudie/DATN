@@ -1,0 +1,23 @@
+version: "3"
+name: datn-mysql-stack
+services:
+  datn-mysql:
+    container_name: datn-mysql
+    image: mysql:5.7.35
+    restart: always
+    environment:
+      MYSQL_ROOT_PASSWORD: "datn_123456"
+      MYSQL_DATABASE: "datn_recruitment"
+    ports:
+      - "3312:3306"
+    volumes:
+      - ./dockers/mysql:/var/lib/mysql
+    command:
+      - --character-set-server=utf8mb4
+      - --collation-server=utf8mb4_unicode_ci
+    networks:
+      - datn_recruitment_net
+
+networks:
+  datn_recruitment_net:
+    external: true
