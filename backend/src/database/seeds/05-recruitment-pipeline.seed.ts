@@ -1,20 +1,18 @@
-import { DataSource } from 'typeorm';
-import { Seeder } from 'typeorm-extension';
+import { DataSource } from "typeorm";
+import { Seeder } from "typeorm-extension";
 
-export default class RecruitmentPipelineSeed implements Seeder {
+export class RecruitmentPipelineSeed implements Seeder {
   public async run(dataSource: DataSource): Promise<void> {
     const queryRunner = dataSource.createQueryRunner();
     await queryRunner.connect();
 
     try {
       const existingCount = await queryRunner.query(
-        `SELECT COUNT(*) as count FROM recruitment_pipeline`,
+        `SELECT COUNT(*) as count FROM recruitment_pipeline`
       );
 
       if (Number(existingCount[0].count) > 0) {
-        console.log(
-          'Recruitment pipeline data already exists, skipping seed...',
-        );
+        console.log("Recruitment pipeline data already exists, skipping seed...");
         return;
       }
 
@@ -33,9 +31,9 @@ export default class RecruitmentPipelineSeed implements Seeder {
           ('Loại', 10, 'fail', 1)
       `);
 
-      console.log('✓ Recruitment pipeline seeded successfully!');
+      console.log("Recruitment pipeline seeded successfully!");
     } catch (error) {
-      console.error('Error seeding recruitment pipeline:', error);
+      console.error("Error seeding recruitment pipeline:", error);
       throw error;
     } finally {
       await queryRunner.release();

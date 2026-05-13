@@ -10,7 +10,6 @@ import type { Request, Response } from 'express';
 import { AuthGuard, Roles, RolesGuard, RoleType } from '../../security';
 import { AuthService } from './auth.service';
 import { AccountDTO } from './dto/account.dto';
-import { UserLoginGoogleDTO } from './dto/user-login-google.dto';
 import { UserLoginResponse } from './dto/user-login-response.dto';
 import { UserLoginDTO } from './dto/user-login.dto';
 
@@ -35,20 +34,6 @@ export class UserLoginController {
     return res.json(jwt);
   }
 
-  @Post('/social-login')
-  @ApiOperation({ summary: 'Login with Google' })
-  @ApiResponse({
-    status: 201,
-    description: 'Authorized',
-    type: UserLoginResponse,
-  })
-  async loginWithGoogle(
-    @Body() user: UserLoginGoogleDTO,
-    @Res() res: Response,
-  ): Promise<any> {
-    const jwt = await this.authService.loginWithGoogle(user);
-    return res.json(jwt);
-  }
 
   @Post('/logout')
   @ApiBearerAuth()

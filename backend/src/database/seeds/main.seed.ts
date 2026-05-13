@@ -1,35 +1,64 @@
-import dataSource from '../../typeorm/orm.datasource';
-import { RoleSeed } from './01-role.seed';
-import { UserSeed } from './02-user.seed';
-import { PageSeed } from './03-page.seed';
-import { RolePageSeed } from './04-role-page.seed';
-import RecruitmentPipelineSeed from './05-recruitment-pipeline.seed';
+import * as fs from "fs";
+import * as path from "path";
+import { DataSource } from "typeorm";
+import { Seeder } from "typeorm-extension";
+import { Seedings } from "../../entities/seedings";
 
-async function main() {
-  await dataSource.initialize();
+export class MainSeeder implements Seeder {
+  async run(dataSource: DataSource): Promise<void> {
+    console.log("Running database seeds");
 
-  const roleSeed = new RoleSeed();
-  const userSeed = new UserSeed();
-  const pageSeed = new PageSeed();
-  const rolePageSeed = new RolePageSeed();
-  const recruitmentPipelineSeed = new RecruitmentPipelineSeed();
+    const seedingRepository = dataSource.getRepository(Seedings);
+    const seedDir = path.resolve(__dirname);
 
-  await roleSeed.run(dataSource, null as any);
-  await userSeed.run(dataSource, null as any);
-  await pageSeed.run(dataSource, null as any);
-  await rolePageSeed.run(dataSource, null as any);
-  await recruitmentPipelineSeed.run(dataSource);
+    const files = fs
+      .readdirSync(seedDir)
+      .filter(
+        (file) =>
+          (file.endsWith(".seed.ts") || file.endsWith(".seed.js")) &&
+          file !== "main.seed.ts" &&
+          file !== "main.seed.js"
+      )
+      .sort();
 
-  console.log('Seed data successfully');
-}
+    for (const file of files) {
+      const filePath = path.join(seedDir, file);
 
-main()
-  .catch((error) => {
-    console.error('Seed data failed:', error);
-    process.exit(1);
-  })
-  .finally(async () => {
-    if (dataSource.isInitialized) {
-      await dataSource.destroy();
+      const check = await seedingRepository.findOne({
+        where: { name: file },
+      });
+
+      if (check) {
+        console.log(`${filePath} already seeded, skipping...`);
+        continue;
+      }
+
+      const seedModule = await import(filePath);
+
+      const SeederClass = [
+        seedModule.default,
+        ...Object.values(seedModule),
+      ].find(
+        (value: any) =>
+          typeof value === "function" &&
+          value.prototype &&
+          typeof value.prototype.run === "function"
+      );
+
+      if (!SeederClass) {
+        throw new Error(`Seeder class not found in file: ${filePath}`);
+      }
+
+      console.log(`Running ${filePath}...`);
+
+      const seeder = new (SeederClass as any)();
+      await seeder.run(dataSource);
+
+      const seeding = new Seedings();
+      seeding.name = file;
+      await seedingRepository.save(seeding);
     }
-  });
+
+    console.log("All seeds executed successfully.");
+  }
+}

@@ -1,5 +1,4 @@
 version: "3"
-name: datn-backend-stack
 services:
   datn-backend:
     container_name: datn-backend
@@ -9,32 +8,13 @@ services:
       - "8086:3000"
     volumes:
       - .:/home/node/backend
-      - datn_backend_node_modules:/home/node/backend/node_modules
+      - /home/node/backend/node_modules
     stdin_open: true
     tty: true
-    env_file:
-      - .env
     environment:
       HOST: 0.0.0.0
-      PORT: 3000
-
-      DB_HOST: datn-mysql
-      DB_PORT: 3306
-      DB_USERNAME: root
-      DB_PASSWORD: datn_123456
-      DB_DATABASE: datn_recruitment
-
-      REDIS_HOST: datn-redis
-      REDIS_PORT: 6379
-      REDIS_USERNAME: datn_admin
-      REDIS_PASSWORD: datn_123456
-      REDIS_URL: redis://datn_admin:datn_123456@datn-redis:6379
     networks:
       - datn_recruitment_net
-
-volumes:
-  datn_backend_node_modules:
-
 networks:
   datn_recruitment_net:
     external: true

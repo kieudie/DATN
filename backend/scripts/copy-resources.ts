@@ -1,37 +1,22 @@
-import * as fs from 'fs';
-import * as path from 'path';
 import * as shell from 'shelljs';
-shell.config.silent = true;
 
-const out = path.join(__dirname, '..', 'dist');
-
-createFolderIfNotExist(out);
-createFolderIfNotExist(path.join(out, 'src'));
-createFolderIfNotExist(path.join(out, 'src', 'config'));
-
-copyIfExist('src/config/*.yml', 'dist/src/config');
-copyIfExist('src/main/mail/templates', 'dist/src/main/mail/');
-copyIfExist(
-  'src/main/mail-recruitment/templates',
-  'dist/src/main/mail-recruitment/',
-);
-
-function copyIfExist(source: string, target: string): void {
-  const files = shell.ls(source);
+function copyGlob(pattern: string, targetDir: string) {
+  const files = shell.ls(pattern);
 
   if (!files || files.length === 0) {
-    console.log(`[copy-resources] Skip: ${source}`);
+    console.log(`[copy-resources] Skip: ${pattern}`);
     return;
   }
 
-  createFolderIfNotExist(target);
-  shell.cp('-R', source, target);
+  shell.mkdir('-p', targetDir);
+  shell.cp('-R', files, targetDir);
 
-  console.log(`[copy-resources] Copied ${source} -> ${target}`);
+  console.log(`[copy-resources] Copied: ${pattern} -> ${targetDir}`);
 }
 
-function createFolderIfNotExist(outDir: string): void {
-  if (!fs.existsSync(outDir)) {
-    fs.mkdirSync(outDir, { recursive: true });
-  }
-}
+copyGlob('src/config/*.yml', 'dist/src/config');
+copyGlob('src/main/mail/templates', 'dist/src/main/mail');
+copyGlob(
+  'src/main/mail-recruitment/templates',
+  'dist/src/main/mail-recruitment',
+);

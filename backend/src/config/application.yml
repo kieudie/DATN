@@ -1,0 +1,42 @@
+server:
+  port: 3000
+
+swagger:
+  path: "/api-docs"
+  title: "HR Recruitment System API"
+  description: "HR Recruitment System API documentation"
+  version: "0.0.1"
+  default-include-pattern: "/api/.*"
+
+typeorm:
+  host: "${DB_HOST}"
+  username: "${DB_USERNAME}"
+  password: "${DB_PASSWORD}"
+  synchronize: false
+  port: "${DB_PORT}"
+  migrationsRun: false
+  name: "default"
+  type: "mysql"
+  database: "${DB_DATABASE}"
+  keepConnectionAlive: true
+  logging: true
+
+security:
+  jwt:
+    base64-secret: "${JWT_ACCESS_SECRET}"
+    refresh-secret: "${JWT_REFRESH_SECRET}"
+    token-validity-in-seconds: 86400
+    token-validity-in-seconds-for-remember-me: 604800
+    hash-salt-or-rounds: 10
+
+logger:
+  mode: dev
+
+redis:
+  host: "${REDIS_HOST}"
+  port: "${REDIS_PORT}"
+  username: "${REDIS_USERNAME}"
+  password: "${REDIS_PASSWORD}"
+  db: "${REDIS_DB}"
+  cache-key-name: "${REDIS_CACHE_KEY_NAME}"
+  url: "${REDIS_URL}"

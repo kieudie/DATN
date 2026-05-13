@@ -12,21 +12,14 @@ export class UserMapper {
     roles: Role[],
     accessToken: string,
   ): UserLoginResponse {
+    if (!user) {
+      return null as any;
+    }
+
     const response = new UserLoginResponse();
 
-    response.user_id = user.id;
-    response.full_name = user.fullName;
-    response.email = user.email;
-    response.phone = user.phone;
     response.access_token = accessToken;
     response.roles = roles.map((role) => role.code);
-    response.role = roles.map((role) => {
-      return {
-        id: role.id,
-        code: role.code,
-        name: role.name,
-      };
-    });
 
     return response;
   }

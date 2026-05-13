@@ -8,7 +8,6 @@ import {
 import { JwtService } from '@nestjs/jwt';
 import * as bcrypt from 'bcrypt';
 import type { Request, Response } from 'express';
-import { OAuth2Client } from 'google-auth-library';
 import { DataSource, In } from 'typeorm';
 import { MESSAGE } from '../../common/constants/constants';
 import { Role } from '../../entities/role';
@@ -18,7 +17,6 @@ import { RoleType } from '../../security';
 import { Payload } from '../../security/payload.interface';
 import { RedisCacheService } from '../redis/redis.service';
 import { AccountDTO } from './dto/account.dto';
-import { UserLoginGoogleDTO } from './dto/user-login-google.dto';
 import { UserLoginDTO } from './dto/user-login.dto';
 import { UserMapper } from './user.mapper';
 
@@ -72,91 +70,6 @@ export class AuthService {
 
     return UserMapper.fromEntityToLoginResponse(userFind, roles, accessToken);
   }
-
-  async loginWithGoogle(userLoginGoogle: UserLoginGoogleDTO): Promise<any> {
-    try {
-      const { email, idToken } = userLoginGoogle;
-      const googleClientId = process.env.GOOGLE_CLIENT_ID;
-
-      if (!googleClientId) {
-        throw new BadRequestException({
-          status: HttpStatus.BAD_REQUEST,
-          message: MESSAGE.TOKEN_ERROR,
-        });
-      }
-
-      const client = new OAuth2Client(googleClientId);
-
-      const ticket = await client.verifyIdToken({
-        idToken,
-        audience: googleClientId,
-      });
-
-      const payloadGoogle = ticket.getPayload();
-      const emailGoogle = payloadGoogle?.email;
-
-      if (!emailGoogle) {
-        throw new BadRequestException({
-          status: HttpStatus.BAD_REQUEST,
-          message: MESSAGE.TOKEN_ERROR,
-        });
-      }
-
-      if (email && email.localeCompare(emailGoogle) !== 0) {
-        throw new BadRequestException({
-          status: HttpStatus.BAD_REQUEST,
-          message: MESSAGE.EMAIL_NOT_FOUND,
-        });
-      }
-
-      const userFind = await this.dataSource.getRepository(User).findOne({
-        where: {
-          email: emailGoogle,
-        },
-        relations: {
-          userRoles: {
-            role: true,
-          },
-        },
-      });
-
-      if (!userFind) {
-        throw new BadRequestException({
-          status: HttpStatus.BAD_REQUEST,
-          message: MESSAGE.ACCOUNT_EMAIL_NOT_FOUND,
-        });
-      }
-
-      if (userFind.isActive !== 1) {
-        throw new BadRequestException({
-          status: HttpStatus.BAD_REQUEST,
-          message: MESSAGE.ACCOUNT_NOT_ACTIVE,
-        });
-      }
-
-      const roles = userFind.userRoles.map((item) => item.role);
-
-      const jwtPayload = {
-        user_id: userFind.id,
-        email: userFind.email,
-        roles: roles.map((role) => role.code),
-      };
-
-      const accessToken = this.jwtService.sign(jwtPayload);
-
-      return UserMapper.fromEntityToLoginResponse(userFind, roles, accessToken);
-    } catch (error) {
-      if (error instanceof HttpException) {
-        throw error;
-      }
-
-      throw new InternalServerErrorException({
-        status: HttpStatus.INTERNAL_SERVER_ERROR,
-        message: MESSAGE.SERVER_ERROR,
-      });
-    }
-  }
-
   async logout(req: Request, res: Response): Promise<Response> {
     const token = this.extractTokenFromRequest(req);
 

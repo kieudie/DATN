@@ -1,26 +1,22 @@
 import { TypeOrmModuleOptions } from '@nestjs/typeorm';
-import * as dotenv from 'dotenv';
-
-dotenv.config();
+import { config } from '../config/config';
 
 function ormConfig(): TypeOrmModuleOptions {
-  const orm: TypeOrmModuleOptions = {
-    type: 'mysql',
-    host: process.env.DB_HOST,
-    port: Number(process.env.DB_PORT),
-    username: process.env.DB_USERNAME,
-    password: process.env.DB_PASSWORD,
-    database: process.env.DB_DATABASE,
-
-    autoLoadEntities: true,
-    synchronize: false,
-
-    entities: [__dirname + '/../**/*.entity{.ts,.js}'],
+  const orm = {
+    name: config.get('typeorm.name'),
+    type: config.get('typeorm.type'),
+    database: config.get('typeorm.database'),
+    host: config.get('typeorm.host'),
+    port: Number(config.get('typeorm.port')),
+    username: config.get('typeorm.username'),
+    password: config.get('typeorm.password'),
+    keepConnectionAlive: config.get('typeorm.keepConnectionAlive'),
+    logging: config.get('typeorm.logging'),
+    synchronize: config.get('typeorm.synchronize'),
+    entities: [__dirname + '/../entities/*{.ts,.js}'],
     migrations: [__dirname + '/../migrations/**/*{.ts,.js}'],
-    migrationsRun: false,
-
-    logging: false,
-  };
+    migrationsRun: config.get('typeorm.migrationsRun'),
+  } as TypeOrmModuleOptions;
 
   return orm;
 }
