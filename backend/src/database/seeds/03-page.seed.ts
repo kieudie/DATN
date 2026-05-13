@@ -1,6 +1,6 @@
 import { DataSource } from 'typeorm';
 import { Seeder, SeederFactoryManager } from 'typeorm-extension';
-import { Page } from '../../entities/page.entity';
+import { Page } from '../../entities/page';
 
 export class PageSeed implements Seeder {
   async run(

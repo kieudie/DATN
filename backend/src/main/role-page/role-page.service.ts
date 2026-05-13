@@ -6,7 +6,7 @@ import {
 } from '@nestjs/common';
 import { DataSource } from 'typeorm';
 import { AccessLevel, MESSAGE } from '../../common/constants/constants';
-import { Role } from '../../entities/role.entity';
+import { Role } from '../../entities/role';
 
 @Injectable()
 export class RolePageService {

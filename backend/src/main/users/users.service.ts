@@ -1,6 +1,6 @@
 import { Injectable } from '@nestjs/common';
 import { DataSource, Like } from 'typeorm';
-import { User } from '../../entities/user.entity';
+import { User } from '../../entities/user';
 import { UserMapper } from '../auth/user.mapper';
 import { RequestGetListUserDTO } from './dto/request-get-list-user.dto';
 

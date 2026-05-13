@@ -1,14 +1,14 @@
 import {
-    Column,
-    CreateDateColumn,
-    Entity,
-    JoinColumn,
-    ManyToOne,
-    PrimaryColumn,
+  Column,
+  CreateDateColumn,
+  Entity,
+  JoinColumn,
+  ManyToOne,
+  PrimaryColumn,
 } from 'typeorm';
 import { AccessLevel } from '../common/constants/constants';
-import { Page } from './page.entity';
-import { Role } from './role.entity';
+import { Page } from './page';
+import { Role } from './role';
 
 @Entity('role_pages')
 export class RolePage {

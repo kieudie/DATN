@@ -1,9 +1,9 @@
 import { DataSource, In } from 'typeorm';
 import { Seeder, SeederFactoryManager } from 'typeorm-extension';
 import { AccessLevel } from '../../common/constants/constants';
-import { Page } from '../../entities/page.entity';
-import { RolePage } from '../../entities/role-page.entity';
-import { Role } from '../../entities/role.entity';
+import { Page } from '../../entities/page';
+import { Role } from '../../entities/role';
+import { RolePage } from '../../entities/role-page';
 import { RoleType } from '../../security';
 
 export class RolePageSeed implements Seeder {

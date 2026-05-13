@@ -2,9 +2,9 @@ import * as bcrypt from 'bcrypt';
 import { DataSource } from 'typeorm';
 import { Seeder, SeederFactoryManager } from 'typeorm-extension';
 import { DEFAULT_PASSWORD } from '../../common/constants/recruitment.constants';
-import { Role } from '../../entities/role.entity';
-import { UserRole } from '../../entities/user-role.entity';
-import { User } from '../../entities/user.entity';
+import { Role } from '../../entities/role';
+import { User } from '../../entities/user';
+import { UserRole } from '../../entities/user-role';
 import { RoleType } from '../../security';
 
 export class UserSeed implements Seeder {

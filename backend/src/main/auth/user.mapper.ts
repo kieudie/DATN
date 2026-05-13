@@ -1,5 +1,5 @@
-import { Role } from '../../entities/role.entity';
-import { User } from '../../entities/user.entity';
+import { Role } from '../../entities/role';
+import { User } from '../../entities/user';
 import { UserLoginResponse } from './dto/user-login-response.dto';
 import { UserDTO } from './dto/user.dto';
 

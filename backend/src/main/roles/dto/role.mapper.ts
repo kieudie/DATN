@@ -1,4 +1,4 @@
-import { Role } from '../../../entities/role.entity';
+import { Role } from '../../../entities/role';
 import { RoleDto } from './role.dto';
 
 /**

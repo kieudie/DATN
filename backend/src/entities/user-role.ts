@@ -1,12 +1,12 @@
 import {
-    CreateDateColumn,
-    Entity,
-    JoinColumn,
-    ManyToOne,
-    PrimaryColumn,
+  CreateDateColumn,
+  Entity,
+  JoinColumn,
+  ManyToOne,
+  PrimaryColumn,
 } from 'typeorm';
-import { Role } from './role.entity';
-import { User } from './user.entity';
+import { Role } from './role';
+import { User } from './user';
 
 @Entity('user_roles')
 export class UserRole {

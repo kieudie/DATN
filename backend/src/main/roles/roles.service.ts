@@ -1,14 +1,14 @@
 import {
-    BadRequestException,
-    HttpStatus,
-    Injectable,
-    InternalServerErrorException,
-    NotFoundException,
+  BadRequestException,
+  HttpStatus,
+  Injectable,
+  InternalServerErrorException,
+  NotFoundException,
 } from '@nestjs/common';
 import { Response } from 'express';
 import { DataSource, Like } from 'typeorm';
 import { MESSAGE } from '../../common/constants/constants';
-import { Role } from '../../entities/role.entity';
+import { Role } from '../../entities/role';
 import { RequestGetListRole } from './dto/request-get-list-role.dto';
 import { RoleDto } from './dto/role.dto';
 import { RoleMapper } from './dto/role.mapper';

@@ -6,8 +6,8 @@ import {
   PrimaryGeneratedColumn,
   UpdateDateColumn,
 } from 'typeorm';
-import { RolePage } from './role-page.entity';
-import { UserRole } from './user-role.entity';
+import { RolePage } from './role-page';
+import { UserRole } from './user-role';
 
 @Entity('roles')
 export class Role {
