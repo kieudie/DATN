@@ -12,12 +12,12 @@ import { RoleType } from '../role-type';
 export class RolesGuard implements CanActivate {
   constructor(private readonly reflector: Reflector) {}
 
-  async canActivate(context: ExecutionContext): Promise<boolean> {
+  async canActivate(context: ExecutionContext): Promise<boolean> { 
     const roles = this.reflector.get<RoleType[]>(
-      'roles',
+      'roles', 
       context.getHandler(),
     );
-
+    console.log('RolesGuard - Required roles for this route:', roles);
     if (!roles || roles.length === 0) {
       return true;
     }

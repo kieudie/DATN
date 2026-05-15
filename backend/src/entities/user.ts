@@ -36,4 +36,9 @@ export class User {
 
   @OneToMany(() => UserRole, (userRole) => userRole.user)
   userRoles!: UserRole[];
+  @Column({ name: "personnel_code", type: "varchar", length: 50, nullable: true })
+personnelCode?: string | null;
+
+@Column({ name: "personnel_name", type: "varchar", length: 255, nullable: true })
+personnelName?: string | null;
 }

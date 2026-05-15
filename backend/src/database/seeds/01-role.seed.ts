@@ -16,16 +16,20 @@ export class RoleSeed implements Seeder {
 
     console.log('Seeding roles...');
 
-    const activeRoles = [
-      {
-        code: RoleType.ADMIN,
-        name: 'HR',
-      },
-      {
-        code: RoleType.RECRUITMENT_MANAGER,
-        name: 'Manager',
-      },
-    ];
+const activeRoles = [
+  {
+    code: RoleType.ADMIN,
+    name: 'HR',
+  },
+  {
+  code: RoleType.RECRUITMENT_MANAGEMENT,
+  name: 'HR',
+},
+  {
+    code: RoleType.RECRUITMENT_MANAGER,
+    name: 'Manager',
+  },
+];
 
     const activeRoleCodes = activeRoles.map((role) => role.code);
 

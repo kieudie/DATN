@@ -22,13 +22,19 @@ export class UserSeed implements Seeder {
       },
     });
 
+    const recruitmentManagementRole = await roleRepository.findOne({
+      where: {
+        code: RoleType.RECRUITMENT_MANAGEMENT,
+      },
+    });
+
     const recruitmentManagerRole = await roleRepository.findOne({
       where: {
         code: RoleType.RECRUITMENT_MANAGER,
       },
     });
 
-    if (!adminRole || !recruitmentManagerRole) {
+    if (!adminRole || !recruitmentManagementRole || !recruitmentManagerRole) {
       throw new Error('Role mặc định chưa tồn tại');
     }
 
@@ -41,7 +47,7 @@ export class UserSeed implements Seeder {
         passwordHash,
         phone: '0900000001',
         isActive: 1,
-        roles: [adminRole],
+        roles: [adminRole, recruitmentManagementRole],
       },
       {
         fullName: 'Manager GX',

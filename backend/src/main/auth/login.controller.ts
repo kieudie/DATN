@@ -25,16 +25,16 @@ export class UserLoginController {
     description: 'Authorized',
     type: UserLoginResponse,
   })
-  async authorize(
-    @Req() req: Request,
-    @Body() user: UserLoginDTO,
-    @Res() res: Response,
-  ): Promise<any> {
-    const jwt = await this.authService.login(user);
-    return res.json(jwt);
-  }
+ async authorize(
+  @Req() req: Request,
+  @Body() user: UserLoginDTO, 
+  @Res() res: Response,
+): Promise<any> {
+  
+  const jwt = await this.authService.login(user);
 
-
+  return res.json(jwt);
+}
   @Post('/logout')
   @ApiBearerAuth()
   @UseGuards(AuthGuard)
@@ -44,6 +44,8 @@ export class UserLoginController {
     description: 'Logout successfully',
   })
   async logout(@Req() req: Request, @Res() res: Response): Promise<any> {
+    console.log('Logout request');
+
     return await this.authService.logout(req, res);
   }
 
@@ -60,6 +62,12 @@ export class UserLoginController {
     description: 'User registered successfully!',
   })
   async register(@Body() user: AccountDTO, @Res() res: Response): Promise<any> {
+    console.log('Register request: ', {
+      email: user.email,
+      fullName: user.full_name,
+      phone: user.phone,
+    });
+
     return await this.authService.registerNewUser(user, res);
   }
 }

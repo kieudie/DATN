@@ -87,6 +87,7 @@ export class RolePageSeed implements Seeder {
 
     const rolePageMappings = {
       [RoleType.ADMIN]: hrPages,
+      [RoleType.RECRUITMENT_MANAGEMENT]: hrPages,
       [RoleType.RECRUITMENT_MANAGER]: managerPages,
     };
 
@@ -105,7 +106,7 @@ export class RolePageSeed implements Seeder {
         roleId: In(managedRoles.map((role) => role.id)),
       });
 
-      console.log('Deleted old role-page mappings for HR and Manager.');
+      console.log('Deleted old role-page mappings for recruitment roles.');
     }
 
     for (const [roleCode, pageMappings] of Object.entries(rolePageMappings)) {

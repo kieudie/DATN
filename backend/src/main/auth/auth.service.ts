@@ -3,7 +3,7 @@ import {
   HttpException,
   HttpStatus,
   Injectable,
-  InternalServerErrorException,
+  InternalServerErrorException
 } from '@nestjs/common';
 import { JwtService } from '@nestjs/jwt';
 import * as bcrypt from 'bcrypt';
@@ -39,18 +39,18 @@ export class AuthService {
         },
       },
     });
-
+//  checkpassword
     const validPassword =
       !!userFind &&
       (await bcrypt.compare(userLogin.password, userFind.passwordHash));
-
+// Check if user exists and password is valid
     if (!userFind || !validPassword) {
       throw new BadRequestException({
-        status: HttpStatus.BAD_REQUEST,
-        message: MESSAGE.INVALID_LOGIN_NAME_OR_PASSWORD,
+        status: HttpStatus.BAD_REQUEST, // Use BAD_REQUEST to indicate invalid credentials
+        message: MESSAGE.INVALID_LOGIN_NAME_OR_PASSWORD, // Use a generic message to avoid revealing whether the email or password is incorrect
       });
     }
-
+// Check if the user account is active
     if (userFind.isActive !== 1) {
       throw new BadRequestException({
         status: HttpStatus.BAD_REQUEST,
@@ -132,15 +132,21 @@ export class AuthService {
           message: MESSAGE.ROLE_NOT_FOUND,
         });
       }
-
-      const roles = await queryRunner.manager.find(Role, {
-        where: {
-          id: In(roleIds),
-          code: In([RoleType.ADMIN, RoleType.RECRUITMENT_MANAGER]),
-        },
-      });
-
-      if (roles.length !== roleIds.length) {
+ // Request tạo user
+//-> Service nhận roleIds
+//-> Query DB bảng Role
+//-> Chỉ lấy role hợp lệ: ADMIN hoặc RECRUITMENT_MANAGER
+//-> So sánh số role tìm được với số role client gửi
+//-> Nếu thiếu role / role không hợp lệ
+//-> rollback transaction
+//-> trả lỗi 400 ROLE_NOT_FOUND
+    const roles = await queryRunner.manager.find(Role, {
+     where: {
+    id: In(roleIds),
+    code: In([RoleType.ADMIN, RoleType.RECRUITMENT_MANAGER]),
+  },
+});
+   if (roles.length !== roleIds.length) {
         await queryRunner.rollbackTransaction();
 
         return res.status(HttpStatus.BAD_REQUEST).json({

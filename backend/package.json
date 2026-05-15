@@ -25,7 +25,9 @@
     "migration:generate": "yarn typeorm migration:create",
     "migration:up": "env-cmd -f .env yarn typeorm migration:run -d dist/src/typeorm/orm-seeding-migration.datasource.js",
     "migration:down": "env-cmd -f .env yarn typeorm migration:revert -d dist/src/typeorm/orm-seeding-migration.datasource.js",
-    "seed:run": "env-cmd -f .env yarn typeorm-extension seed:run -d dist/src/typeorm/orm-seeding-migration.datasource.js"  },
+     "seed:run": "env-cmd -f .env yarn typeorm-extension seed:run -d dist/src/typeorm/orm-seeding-migration.datasource.js",
+    "seed": "env-cmd -f .env -- ts-node -r tsconfig-paths/register src/database/seeds/main.seed.ts"
+  },
   "dependencies": {
     "@nestjs-modules/ioredis": "^2.2.1",
     "@nestjs/common": "^11.0.1",

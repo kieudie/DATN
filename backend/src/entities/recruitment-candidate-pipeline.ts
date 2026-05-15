@@ -10,6 +10,7 @@ import {
 import { BaseEntity } from "./base/base.entity";
 import { RecruitmentApplications } from "./recruitment-applications";
 import { RecruitmentCandidates } from "./recruitment-candidates";
+import { User } from "./user";
 
 export type CandidatePipelineResult = "pass" | "fail" | "pending";
 
@@ -55,17 +56,20 @@ export class RecruitmentCandidatePipeline extends BaseEntity {
   @Expose({ name: "created_by" })
   createdBy: number | null;
 
+  @ManyToOne(() => User, {
+    nullable: true,
+    createForeignKeyConstraints: false,
+  })
+  @JoinColumn({ name: "created_by", referencedColumnName: "id" })
+  creator?: User | null;
+
   @CreateDateColumn({ name: "created_at", type: "datetime" })
   createdAt: Date;
 
-  @ManyToOne(
-    () => RecruitmentCandidates,
-    (candidate) => candidate.pipelines,
-    {
-      onDelete: "CASCADE",
-      onUpdate: "CASCADE",
-    },
-  )
+  @ManyToOne(() => RecruitmentCandidates, (candidate) => candidate.pipelines, {
+    onDelete: "CASCADE",
+    onUpdate: "CASCADE",
+  })
   @JoinColumn({ name: "candidate_id" })
   candidate: RecruitmentCandidates;
 

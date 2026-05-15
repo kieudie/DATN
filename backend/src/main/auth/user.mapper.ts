@@ -15,7 +15,7 @@ export class UserMapper {
     if (!user) {
       return null as any;
     }
-
+// Create a new instance of UserLoginResponse and populate its properties
     const response = new UserLoginResponse();
 
     response.access_token = accessToken;
