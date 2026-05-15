@@ -8,26 +8,19 @@ import { RecruitmentOrder } from "../../../entities/recruitment-order";
 
 @Injectable()
 export class ApplicationService {
-  //private readonly logger = new LoggerService("ApplicationService");
-  private readonly logger = new LoggerService();
+  private readonly logger = new LoggerService("ApplicationService");
 
- // constructor(
-   // @InjectRepository(RecruitmentApplications)
-   // private applicationsRepository: Repository<RecruitmentApplications>,
-  //) {}
   constructor(
-  @InjectRepository(RecruitmentApplications)
-  private applicationsRepository: Repository<RecruitmentApplications>,
-) {
-  this.logger.setContext('ApplicationService');
-}
+    @InjectRepository(RecruitmentApplications)
+    private applicationsRepository: Repository<RecruitmentApplications>,
+  ) {}
 
   /**
    * Create new application
    */
   async create(data: {
     candidateId: number;
-    position?: string;
+    position: string;
     level?: string;
     department?: string;
     source?: string;
@@ -55,8 +48,7 @@ export class ApplicationService {
    */
   createEntity(data: {
     candidateId: number;
-    // position: string;
-    position?: string;
+    position: string;
     level?: string;
     department?: string;
     source?: string;
@@ -68,6 +60,8 @@ export class ApplicationService {
     gpa?: string;
     onboardingDate?: Date;
     note?: string;
+    aiIsPotential?: number;
+    hrIsPotential?: number;
     createdBy?: number;
   }): RecruitmentApplications {
     return this.applicationsRepository.create({
@@ -100,10 +94,10 @@ export class ApplicationService {
       .leftJoinAndSelect("application.candidate", "candidate")
       .leftJoinAndSelect("application.cvs", "cvs")
       .leftJoinAndSelect("application.pipelineHistory", "pipelineHistory")
-    //  .leftJoinAndSelect("pipelineHistory.creator", "creator", undefined, {
-      //  personnelCode: true,
-        //personnelName: true,
-      //})
+      .leftJoinAndSelect("pipelineHistory.creator", "creator", undefined, {
+        personnelCode: true,
+        personnelName: true,
+      })
       .leftJoinAndMapOne(
         "application.orderInfo",
         RecruitmentOrder,
@@ -161,6 +155,8 @@ export class ApplicationService {
       onboardingDate: Date;
       note: string;
       testOnlineStatus: string;
+      aiIsPotential: number;
+      hrIsPotential: number;
     }>,
   ): Promise<RecruitmentApplications> {
     const application = await this.findById(id);

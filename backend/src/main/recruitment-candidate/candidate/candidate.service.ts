@@ -14,18 +14,13 @@ import { FindAllCandidatesQueryDto } from "../dto/find-all-candidates-query.dto"
 
 @Injectable()
 export class CandidateService {
- // private readonly logger = new LoggerService("CandidateService");
-private readonly logger = new LoggerService();
- // constructor(
-   // @InjectRepository(RecruitmentCandidates)
-   // private candidatesRepository: Repository<RecruitmentCandidates>,
-  //) {}
-constructor(
-  @InjectRepository(RecruitmentCandidates)
-  private candidatesRepository: Repository<RecruitmentCandidates>,
-) {
-  this.logger.setContext('CandidateService');
-}
+  private readonly logger = new LoggerService("CandidateService");
+
+  constructor(
+    @InjectRepository(RecruitmentCandidates)
+    private candidatesRepository: Repository<RecruitmentCandidates>,
+  ) {}
+
   async findByEmail(
     email: string,
   ): Promise<RecruitmentCandidates | null> {
@@ -45,9 +40,9 @@ constructor(
   }
 
   async create(data: {
-    fullName?: string;
-    phone?: string;
-    email?: string;
+    fullName: string;
+    phone: string;
+    email: string;
     gender?: string;
     universitySchool?: string;
   }): Promise<RecruitmentCandidates> {
@@ -58,8 +53,8 @@ constructor(
   }
 
   createEntity(data: {
-    fullName?: string;
-    phone?: string;
+    fullName: string;
+    phone: string;
     email: string;
     gender?: string;
     universitySchool?: string;
@@ -76,7 +71,7 @@ constructor(
       .leftJoinAndSelect("candidate.applications", "applications")
       .leftJoinAndSelect("applications.cvs", "cvs")
       .leftJoinAndSelect("applications.pipelineHistory", "pipelineHistory")
-     .leftJoinAndSelect("pipelineHistory.creator", "creator")
+      .leftJoinAndSelect("pipelineHistory.creator", "creator")
       .leftJoinAndMapOne(
         "applications.orderInfo",
         RecruitmentOrder,
@@ -88,8 +83,8 @@ constructor(
         "applications",
         "cvs",
         "pipelineHistory",
-       "creator.personnelCode",
-       "creator.personnelName",
+        "creator.personnelCode",
+        "creator.personnelName",
         "order",
       ])
       .where("candidate.id = :id", { id })
@@ -143,7 +138,36 @@ constructor(
     query: FindAllCandidatesQueryDto,
   ): Promise<[RecruitmentCandidates[], number]> {
     const { page, size, active, direction } = header;
-    const { fullName, position, status } = query;
+    const {
+      fullName,
+      position,
+      status,
+      department,
+      level,
+      source,
+      universitySchool,
+      gender,
+      pipelineCode,
+      pipelineResult,
+      startDate,
+      endDate,
+    } = query;
+
+    const toArray = (val?: string) =>
+      val
+        ?.split(",")
+        .map((v) => v.trim())
+        .filter(Boolean) ?? [];
+
+    const positions = toArray(position);
+    const statuses = toArray(status);
+    const departments = toArray(department);
+    const levels = toArray(level);
+    const sources = toArray(source);
+    const universities = toArray(universitySchool);
+    const genders = toArray(gender);
+    const pipelineCodes = toArray(pipelineCode);
+    const pipelineResults = toArray(pipelineResult);
 
     const paginate = new PageRequest(page, size, `${active},${direction}`);
 
@@ -183,15 +207,82 @@ constructor(
       );
     }
 
-    if (position) {
-      queryBuilder.andWhere("order.position LIKE :position", {
-        position: `%${position}%`,
+    if (positions.length) {
+      queryBuilder.andWhere(
+        "(order.position IN (:...positions) OR application.position IN (:...positions))",
+        { positions },
+      );
+    }
+
+    if (statuses.length) {
+      queryBuilder.andWhere("application.status IN (:...statuses)", {
+        statuses,
       });
     }
 
-    if (status) {
-      queryBuilder.andWhere("application.status = :status", {
-        status: status,
+    if (departments.length) {
+      queryBuilder.andWhere("application.department IN (:...departments)", {
+        departments,
+      });
+    }
+
+    if (levels.length) {
+      queryBuilder.andWhere("application.level IN (:...levels)", { levels });
+    }
+
+    if (sources.length) {
+      queryBuilder.andWhere("application.source IN (:...sources)", { sources });
+    }
+
+    if (universities.length) {
+      queryBuilder.andWhere(
+        "candidate.universitySchool IN (:...universities)",
+        { universities },
+      );
+    }
+
+    if (genders.length) {
+      queryBuilder.andWhere("candidate.gender IN (:...genders)", { genders });
+    }
+
+    if (pipelineCodes.length || pipelineResults.length) {
+      const pipelineTable = this.candidatesRepository.manager.getRepository(
+        RecruitmentPipeline,
+      ).metadata.tableName;
+
+      const conditions: string[] = ["cp.application_id = application.id"];
+      const params: Record<string, unknown> = {};
+
+      if (pipelineCodes.length) {
+        conditions.push("cp.recruitment_pipeline_code IN (:...pipelineCodes)");
+        params.pipelineCodes = pipelineCodes;
+      }
+
+      if (pipelineResults.length) {
+        conditions.push("cp.result IN (:...pipelineResults)");
+        params.pipelineResults = pipelineResults;
+      }
+
+      queryBuilder.andWhere(
+        `EXISTS (SELECT 1 FROM ${pipelineTable} cp WHERE ${conditions.join(
+          " AND ",
+        )})`,
+        params,
+      );
+    }
+
+    if (startDate) {
+      queryBuilder.andWhere(
+        "DATE(application.appliedDate) >= DATE(:startDate)",
+        {
+          startDate,
+        },
+      );
+    }
+
+    if (endDate) {
+      queryBuilder.andWhere("DATE(application.appliedDate) <= DATE(:endDate)", {
+        endDate,
       });
     }
 

@@ -1,7 +1,6 @@
 import { Module } from "@nestjs/common";
 import { TypeOrmModule } from "@nestjs/typeorm";
-import { RecruitmentPipeline } from "../../entities/recruitment-pipeline";
-import { ScheduledJob } from "../../entities/scheduled-job";
+import { RecruitmentPipeline } from "src/entities/recruitment-pipeline";
 import { RedisCacheModule } from "../redis/redis.module";
 import { ApplicationModule } from "./application/application.module";
 import { CandidateCvModule } from "./candidate-cv/candidate-cv.module";
@@ -13,12 +12,12 @@ import { RecruitmentService } from "./recruitment.service";
 
 @Module({
   imports: [
-    TypeOrmModule.forFeature([RecruitmentPipeline, ScheduledJob]),
+    TypeOrmModule.forFeature([RecruitmentPipeline]),
     CandidateModule,
     ApplicationModule,
     CandidateCvModule,
     CandidatePipelineModule,
-    PipelineModule,   
+    PipelineModule,
     RedisCacheModule,
   ],
   controllers: [RecruitmentController],

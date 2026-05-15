@@ -1,6 +1,11 @@
 import { ApiProperty } from "@nestjs/swagger";
 import { Expose } from "class-transformer";
-import { IsDateString, IsEnum, IsOptional, IsString } from "class-validator";
+import {
+  IsDateString,
+  IsEnum,
+  IsOptional,
+  IsString
+} from "class-validator";
 import { TestOnlineStatus } from "../../../common/constants/recruitment.constants";
 
 @Expose()

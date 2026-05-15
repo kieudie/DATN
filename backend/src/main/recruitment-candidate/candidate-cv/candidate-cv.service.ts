@@ -6,14 +6,12 @@ import { RecruitmentCandidatesCv } from "../../../entities/recruitment-candidate
 
 @Injectable()
 export class CandidateCvService {
-  private readonly logger = new LoggerService();
+  private readonly logger = new LoggerService("CandidateCvService");
 
-constructor(
-  @InjectRepository(RecruitmentCandidatesCv)
-  private candidatesCvRepository: Repository<RecruitmentCandidatesCv>,
-) {
-  this.logger.setContext('CandidateCvService');
-}
+  constructor(
+    @InjectRepository(RecruitmentCandidatesCv)
+    private candidatesCvRepository: Repository<RecruitmentCandidatesCv>,
+  ) {}
 
   /**
    * Create new CV record

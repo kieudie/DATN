@@ -10,14 +10,13 @@ import { RecruitmentCandidatePipeline } from "../../../entities/recruitment-cand
 
 @Injectable()
 export class CandidatePipelineService {
-private readonly logger = new LoggerService();
+  private readonly logger = new LoggerService("CandidatePipelineService");
 
-constructor(
-  @InjectRepository(RecruitmentCandidatePipeline)
-  private pipelineRepository: Repository<RecruitmentCandidatePipeline>,
-) {
-  this.logger.setContext('CandidatePipelineService');
-}
+  constructor(
+    @InjectRepository(RecruitmentCandidatePipeline)
+    private pipelineRepository: Repository<RecruitmentCandidatePipeline>
+  ) {}
+
   /**
    * Create new pipeline history record
    */

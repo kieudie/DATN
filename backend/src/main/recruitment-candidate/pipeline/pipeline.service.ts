@@ -1,23 +1,18 @@
 import { Injectable } from "@nestjs/common";
 import { InjectRepository } from "@nestjs/typeorm";
+import { RecruitmentPipeline } from "src/entities/recruitment-pipeline";
 import { Repository } from "typeorm";
 import { LoggerService } from "../../../common/logger/logger.service";
-import { RecruitmentPipeline } from "../../../entities/recruitment-pipeline";
 
 @Injectable()
 export class PipelineService {
- // private readonly logger = new LoggerService("PipelineService");
-private readonly logger = new LoggerService();
-  //constructor(
-    //@InjectRepository(RecruitmentPipeline)
-    p//rivate readonly pipelineRepository: Repository<RecruitmentPipeline>
-  //) {}
-constructor(
-  @InjectRepository(RecruitmentPipeline)
-  private readonly pipelineRepository: Repository<RecruitmentPipeline>,
-) {
-  this.logger.setContext('PipelineService');
-}
+  private readonly logger = new LoggerService("PipelineService");
+
+  constructor(
+    @InjectRepository(RecruitmentPipeline)
+    private readonly pipelineRepository: Repository<RecruitmentPipeline>
+  ) {}
+
   /**
    * Get all recruitment pipeline stages (no pagination)
    * @returns Array of all pipeline stages ordered by order field

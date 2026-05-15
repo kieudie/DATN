@@ -1,4 +1,5 @@
 import { Expose } from "class-transformer";
+import { TestOnlineStatus } from "src/common/constants/recruitment.constants";
 import {
   Column,
   CreateDateColumn,
@@ -15,18 +16,12 @@ import { RecruitmentCandidatePipeline } from "./recruitment-candidate-pipeline";
 import { RecruitmentCandidates } from "./recruitment-candidates";
 import { RecruitmentCandidatesCv } from "./recruitment-candidates-cv";
 
-export type TestOnlineStatus =
-  | "sent"
-  | "passed"
-  | "not_attempt"
-  | "failed";
-
 @Index("idx_application_candidate_id", ["candidateId"], {})
 @Index("idx_application_status", ["status"], {})
 @Entity("applications")
 @Expose()
 export class RecruitmentApplications extends BaseEntity {
-  @Column("int", { name: "candidate_id" })
+   @Column("int", { name: "candidate_id" })
   @Expose({ name: "candidate_id" })
   candidateId: number;
 
@@ -82,9 +77,10 @@ export class RecruitmentApplications extends BaseEntity {
   @Expose({ name: "created_by" })
   createdBy: number | null;
 
-  @Column("enum", {
+  @Column({
+    type: "enum",
+    enum: TestOnlineStatus,
     name: "test_online_status",
-    enum: ["sent", "passed", "not_attempt", "failed"],
     nullable: true,
   })
   @Expose({ name: "test_online_status" })
@@ -93,7 +89,6 @@ export class RecruitmentApplications extends BaseEntity {
   @Column("varchar", { name: "gpa", nullable: true, length: 50 })
   @Expose({ name: "gpa" })
   gpa: string | null;
-
   @CreateDateColumn({ name: "created_at", type: "datetime" })
   createdAt: Date;
 
@@ -103,6 +98,7 @@ export class RecruitmentApplications extends BaseEntity {
   @DeleteDateColumn({ name: "deleted_at", type: "datetime", nullable: true })
   deletedAt: Date | null;
 
+  // Relations
   @ManyToOne(
     () => RecruitmentCandidates,
     (candidate) => candidate.applications,
@@ -122,4 +118,10 @@ export class RecruitmentApplications extends BaseEntity {
     (pipeline) => pipeline.application,
   )
   pipelineHistory: RecruitmentCandidatePipeline[];
+
+  // @OneToMany(
+  //   () => RecruitmentCandidateManagerReview,
+  //   (managerReview) => managerReview.application,
+  // )
+  // managerReviews: RecruitmentCandidateManagerReview[];
 }

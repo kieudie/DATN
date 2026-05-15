@@ -7,7 +7,7 @@ import {
   IsOptional,
   IsString,
 } from "class-validator";
-import { RECRUITMENT_PIPELINE_CODES } from "../../../common/constants/recruitment.constants";
+import { RECRUITMENT_PIPELINE_CODES } from "src/common/constants/recruitment.constants";
 
 @Expose()
 export class MailRecruitmentDTO {

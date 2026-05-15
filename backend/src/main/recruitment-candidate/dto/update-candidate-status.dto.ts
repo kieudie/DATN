@@ -1,15 +1,15 @@
 import { ApiProperty } from "@nestjs/swagger";
 import { Expose } from "class-transformer";
 import {
-    IsDateString,
-    IsEnum,
-    IsNotEmpty,
-    IsOptional,
-    IsString,
+  IsDateString,
+  IsEnum,
+  IsNotEmpty,
+  IsOptional,
+  IsString
 } from "class-validator";
 import {
-    PIPELINE_RESULT,
-    RECRUITMENT_PIPELINE_CODES,
+  PIPELINE_RESULT,
+  RECRUITMENT_PIPELINE_CODES,
 } from "../../../common/constants/recruitment.constants";
 
 @Expose()

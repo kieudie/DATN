@@ -2,7 +2,6 @@ import { InjectRedis } from '@nestjs-modules/ioredis';
 import { Injectable } from '@nestjs/common';
 import { createHash } from 'crypto';
 import Redis from 'ioredis';
-import { REDIS_KEY } from '../../common/constants/recruitment.constants';
 import { LoggerService } from '../../common/logger/logger.service';
 
 @Injectable()
@@ -10,7 +9,6 @@ export class RedisCacheService {
   private readonly logger = new LoggerService();
 
   constructor(@InjectRedis() private readonly redis: Redis) {
-    this.logger.setContext('RedisService');
   }
 
   async getCachedData<T = any>(key: string): Promise<T | string | null> {
@@ -110,6 +108,6 @@ export class RedisCacheService {
   private generateBlacklistedTokenKey(token: string): string {
     const tokenHash = createHash('sha256').update(token).digest('hex');
 
-    return `${REDIS_KEY.BLACKLIST_TOKEN}:${tokenHash}`;
+    return `blacklisted:${tokenHash}`;
   }
 }

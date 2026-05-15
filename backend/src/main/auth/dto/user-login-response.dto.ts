@@ -18,4 +18,10 @@ export class UserLoginResponse {
   })
   @IsArray()
   roles!: string[];
+
+  @ApiProperty({
+    description: 'User full name',
+    example: 'John Doe',
+  })
+  full_name?: string;
 }

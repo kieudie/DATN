@@ -20,6 +20,7 @@ export class UserMapper {
 
     response.access_token = accessToken;
     response.roles = roles.map((role) => role.code);
+    response.full_name = user.fullName;
 
     return response;
   }

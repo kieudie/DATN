@@ -1,11 +1,11 @@
 import { ApiProperty } from "@nestjs/swagger";
 import { Expose } from "class-transformer";
 import {
-    IsDateString,
-    IsEmail,
-    IsNotEmpty,
-    IsOptional,
-    IsString,
+  IsDateString,
+  IsEmail,
+  IsNotEmpty,
+  IsOptional,
+  IsString
 } from "class-validator";
 
 @Expose()

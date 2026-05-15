@@ -1,7 +1,6 @@
 import * as bcrypt from 'bcrypt';
 import { DataSource } from 'typeorm';
 import { Seeder, SeederFactoryManager } from 'typeorm-extension';
-import { DEFAULT_PASSWORD } from '../../common/constants/recruitment.constants';
 import { Role } from '../../entities/role';
 import { User } from '../../entities/user';
 import { UserRole } from '../../entities/user-role';
@@ -38,7 +37,7 @@ export class UserSeed implements Seeder {
       throw new Error('Role mặc định chưa tồn tại');
     }
 
-    const passwordHash = await bcrypt.hash(DEFAULT_PASSWORD, 10);
+    const passwordHash = await bcrypt.hash("123456", 10);
 
     const users = [
       {

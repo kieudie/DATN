@@ -17,7 +17,7 @@ import { RecruitmentCandidatesCv } from "./recruitment-candidates-cv";
 @Entity("candidates")
 @Expose()
 export class RecruitmentCandidates extends BaseEntity {
-  @Column("varchar", { name: "full_name", nullable: true, length: 255 })
+   @Column("varchar", { name: "full_name", nullable: true, length: 255 })
   @Expose({ name: "full_name" })
   fullName: string | null;
 
