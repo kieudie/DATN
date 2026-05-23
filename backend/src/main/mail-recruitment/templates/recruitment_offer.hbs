@@ -1,0 +1,279 @@
+<html lang="vi">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <meta name="x-apple-disable-message-reformatting" />
+    <title>{{subject}}</title>
+    <style>
+      /* Email-safe resets */ body, table, td, a { -webkit-text-size-adjust:
+      100%; -ms-text-size-adjust: 100%; } table, td { mso-table-lspace: 0pt;
+      mso-table-rspace: 0pt; } img { -ms-interpolation-mode: bicubic; border: 0;
+      outline: none; text-decoration: none; } table { border-collapse: collapse
+      !important; } body { margin: 0 !important; padding: 0 !important; width:
+      100% !important; height: 100% !important; background-color:#f3f4f6; } a {
+      color: #0b63ce; text-decoration: underline; } /* Simple responsiveness */
+      @media screen and (max-width: 620px) { .container { width: 100%
+      !important; } .px { padding-left: 16px !important; padding-right: 16px
+      !important; } .info-table td { display:block !important; width:100%
+      !important; padding:4px 0 !important; } }
+    </style>
+  </head>
+
+  <body>
+    <table
+      role="presentation"
+      width="100%"
+      cellspacing="0"
+      cellpadding="0"
+      border="0"
+      style="background-color:#f3f4f6;"
+    >
+      <tr>
+        <td align="center" style="padding: 24px 12px;">
+          <!-- Container -->
+          <table
+            role="presentation"
+            class="container"
+            width="600"
+            cellspacing="0"
+            cellpadding="0"
+            border="0"
+            style="width:600px;max-width:600px;background:#ffffff;border:1px solid #e5e7eb;"
+          >
+            <!-- Header image -->
+            <tr>
+              <td style="padding:0;">
+                <!-- NOTE: header_image_url must be an absolute URL -->
+                <img
+                  src="{{header_image_url}}"
+                  alt="Welcome to CG Game Studio"
+                  width="600"
+                  style="width:100%;max-width:600px;height:auto;display:block;"
+                />
+              </td>
+            </tr>
+
+            <!-- Body -->
+            <tr>
+              <td
+                class="px"
+                style="padding: 20px 24px 6px 24px; font-family: 'Times New Roman', Times, serif; color:#111827; font-size:14px; line-height:1.6;"
+              >
+                <p style="margin:0 0 10px 0;">Thân gửi bạn
+                  <strong>{{name}}</strong>,</p>
+
+                <p style="margin:0 0 10px 0;">
+                  CG Game Studio trân trọng cảm ơn sự quan tâm của bạn đối
+                  với Công ty cũng như vị trí mà bạn đã dự tuyển.
+                </p>
+
+                <p style="margin:0 0 10px 0;">
+                  Chúng tôi xin
+                  <strong style="color:#E6761A;">VUI MỪNG</strong>
+                  thông báo bạn
+                  <strong style="color:#E6761A;">đã trúng tuyển</strong>
+                  vào vị trí
+                  <strong
+                    style="color:#1717FF;font-weight:bold;font-style:italic;"
+                  >{{job}}</strong>
+                  của chúng tôi, và xin gửi lời mời bạn đến nhận việc tại Công
+                  ty theo các thông tin sau:
+                </p>
+
+                <!-- Section 1: Thông tin nhận việc -->
+                <p style="margin:14px 0 8px 0;"><strong>1. Thông tin nhận việc:</strong></p>
+
+                <!-- Info Table (no border) -->
+                <table
+                  role="presentation"
+                  class="info-table"
+                  width="100%"
+                  cellspacing="0"
+                  cellpadding="0"
+                  border="0"
+                  style="margin:0 0 10px 0;background:#f9fafb;padding:12px;"
+                >
+                  <tr>
+                    <td
+                      width="150"
+                      valign="top"
+                      style="padding:6px 8px;font-family: 'Times New Roman', Times, serif;font-size:14px;"
+                    >
+                      <strong>- Thời gian:</strong>
+                    </td>
+                    <td
+                      valign="top"
+                      style="padding:6px 8px;font-family: 'Times New Roman', Times, serif;font-size:14px;"
+                    >
+                      <span>{{offer_date}}</span>
+                    </td>
+                  </tr>
+                  <tr>
+                    <td
+                      width="150"
+                      valign="top"
+                      style="padding:6px 8px;font-family: 'Times New Roman', Times, serif;font-size:14px;"
+                    >
+                      <strong>- Địa điểm làm việc:</strong>
+                    </td>
+                    <td
+                      valign="top"
+                      style="padding:6px 8px;font-family: 'Times New Roman', Times, serif;font-size:14px;"
+                    >
+                      Tầng 8, Toà Gold Tower, 275 Nguyễn Trãi, phường Khương
+                      Đình, Thành phố Hà Nội
+                    </td>
+                  </tr>
+                  <tr>
+                    <td
+                      width="150"
+                      valign="top"
+                      style="padding:6px 8px;font-family: 'Times New Roman', Times, serif;font-size:14px;"
+                    >
+                      <strong>- Chế độ làm việc:</strong>
+                    </td>
+                    <td
+                      valign="top"
+                      style="padding:6px 8px;font-family: 'Times New Roman', Times, serif;font-size:14px;"
+                    >
+                      <strong>Chi tiết trong file đính kèm</strong>
+                    </td>
+                  </tr>
+                  <tr>
+                    <td
+                      width="150"
+                      valign="top"
+                      style="padding:6px 8px;font-family: 'Times New Roman', Times, serif;font-size:14px;"
+                    >
+                      <strong>- Người liên hệ:</strong>
+                    </td>
+                    <td
+                      valign="top"
+                      style="padding:6px 8px;font-family: 'Times New Roman', Times, serif;font-size:14px;"
+                    >
+                      <span>{{contact}}</span>
+                    </td>
+                  </tr>
+                </table>
+
+                <p style="margin:10px 0 14px 0;font-style:italic;">
+                  Bạn vui lòng bấm vào
+                  <strong>"Trả lời tất cả/reply all"</strong>
+                  để xác nhận lịch nhận việc.
+                </p>
+
+                <!-- Section 2: Hoàn thiện thông tin online -->
+                <p style="margin:14px 0 8px 0;"><strong>2. Hoàn thiện thông tin
+                    online:</strong></p>
+
+                <p style="margin:0 0 10px 0;">
+                  Sau khi xác nhận đồng ý nhận việc, bạn vui lòng điền các thông
+                  tin vào biểu mẫu dưới đây để CG Game Studio chuẩn bị các thủ tục nhận
+                  việc
+                  <em>(Lưu ý update thông tin cư trú theo mô hình chính quyền
+                    địa phương hai cấp)</em>:
+                </p>
+
+                <p style="margin:0 0 10px 0;">
+                  - Link:
+                  <a
+                    href="https://forms.gle/1jzJwLTM79T6S7EC8"
+                    target="_blank"
+                    rel="noopener noreferrer"
+                  >https://forms.gle/1jzJwLTM79T6S7EC8</a>
+                </p>
+
+                {{#if is_intern}}
+                  <p style="margin:0 0 10px 0;">
+                    - Với vị trí Thực tập sinh bạn vui lòng đem theo Laptop để
+                    hỗ trợ quá trình làm việc.
+                  </p>
+                {{/if}}
+
+                <p style="margin:14px 0 14px 0;">Team tuyển dụng - CG Game
+                  Studio!</p>
+              </td>
+            </tr>
+
+            <!-- Signature box -->
+            <tr>
+              <td class="px" style="padding: 0 24px 24px 24px;">
+                <table
+                  role="presentation"
+                  width="100%"
+                  cellspacing="0"
+                  cellpadding="0"
+                  border="0"
+                  style="border:1px solid #d1d5db;"
+                >
+                  <tr>
+                    <!-- Logo -->
+                    <td
+                      class="sig-col sig-logo"
+                      width="140"
+                      valign="middle"
+                      align="center"
+                      style="padding:12px;border-right:1px solid #d1d5db;"
+                    >
+                      <!-- NOTE: logo_url must be an absolute URL -->
+                      <img
+                        src="{{logo_url}}"
+                        alt="CG Game Studio"
+                        width="100%"
+                        style="width:100%;max-width:140px;height:auto;display:block;margin:0 auto;"
+                      />
+                    </td>
+
+                    <!-- Info -->
+                    <td
+                      class="sig-col"
+                      valign="top"
+                      style="padding:12px;font-family: 'Lora', serif;"
+                    >
+                      <div
+                        style="font-size:18px;font-weight:700;color:#f58220;line-height:1.2;margin-bottom:6px;"
+                      >
+                        HR Department
+                      </div>
+
+                      <div
+                        style="font-size:12px;color:#f58220;margin-bottom:8px;"
+                      >
+                        <strong>{{company_name}}</strong>
+                      </div>
+
+                      <div
+                        style="font-size:12px;color:#111827;margin-bottom:4px;"
+                      >
+                        A:
+                        {{company_address}}
+                      </div>
+
+                      <div
+                        style="font-size:12px;color:#111827;margin-bottom:4px;"
+                      >
+                        W:
+                        <a
+                          href="{{website_url}}"
+                          target="_blank"
+                          rel="noopener noreferrer"
+                        >{{website_url}}</a>
+                      </div>
+
+                      <div style="font-size:12px;color:#111827;">
+                        M:
+                        {{phone}}
+                      </div>
+                    </td>
+                  </tr>
+                </table>
+              </td>
+            </tr>
+
+          </table>
+          <!-- /Container -->
+        </td>
+      </tr>
+    </table>
+  </body>
+</html>

@@ -19,6 +19,9 @@ import { LoggerService } from "../../common/logger/logger.service";
 import { PageRequest } from "../../entities/base/pagination.entity";
 import { RecruitmentOrder } from "../../entities/recruitment-order";
 import { BaseHeaderDTO } from "../base/base.header";
+import { EmailTemplateService } from "../mail-recruitment/email-template.service";
+import { MailRecruitmentService } from "../mail-recruitment/mail-recruitment.service";
+import { ScheduledJobService } from "../scheduled-job/scheduled-job.service";
 import { ApplicationService } from "./application/application.service";
 import { CandidateCvService } from "./candidate-cv/candidate-cv.service";
 import { CandidatePipelineService } from "./candidate-pipeline/candidate-pipeline.service";
@@ -37,8 +40,8 @@ import { PipelineStageDTO } from "./dto/pipeline-stage.dto";
 import { UpdateApplicationDTO } from "./dto/update-application.dto";
 import { UpdateCandidateStatusDTO } from "./dto/update-candidate-status.dto";
 import { UpdateCandidateDTO } from "./dto/update-candidate.dto";
+import { normalizeCc } from "./helper/recruitment.helper";
 import { PipelineService } from "./pipeline/pipeline.service";
-
 @Injectable()
 export class RecruitmentService {
   private readonly logger = new LoggerService("RecruitmentService");
@@ -49,6 +52,9 @@ export class RecruitmentService {
     private readonly candidateCvService: CandidateCvService,
     private readonly candidatePipelineService: CandidatePipelineService,
     private readonly pipelineService: PipelineService,
+    private readonly emailTemplateService: EmailTemplateService,
+    private readonly mailRecruitmentService: MailRecruitmentService,
+    private readonly scheduledJobService: ScheduledJobService,
     private dataSource: DataSource,
   ) {}
 
@@ -468,7 +474,7 @@ export class RecruitmentService {
       const desiredRows: any[] = await queryRunner.query(
         `SELECT ` +
           "`order`" +
-          ` AS ord, code FROM rocket_recruitment_pipeline WHERE code = ? LIMIT 1`,
+          ` AS ord, code FROM recruitment_pipeline WHERE code = ? LIMIT 1`,
         [updateStatusDto.status],
       );
 
@@ -484,7 +490,7 @@ export class RecruitmentService {
         const prevRows: any[] = await queryRunner.query(
           `SELECT ` +
             "`order`" +
-            ` AS ord, code FROM rocket_recruitment_pipeline WHERE code = ? LIMIT 1`,
+            ` AS ord, code FROM recruitment_pipeline WHERE code = ? LIMIT 1`,
           [previousPipelineCode],
         );
 
@@ -703,19 +709,22 @@ export class RecruitmentService {
         );
       }
 
-      // const emailTemplate = await this.emailTemplateService.findByPipelineCode(
-      //   status,
-      // );
+const emailTemplateResult =
+  await this.emailTemplateService.findByPipelineCode(status);
 
-      // if (!emailTemplate) {
-      //   this.logger.log(
-      //     `No email template found for status: ${status}, skipping email sending.`,
-      //   );
-      //   return res.status(404).json({
-      //     message: `No email template found for status: ${status}`,
-      //   });
-      // }
+const emailTemplate = Array.isArray(emailTemplateResult)
+  ? emailTemplateResult[0]
+  : emailTemplateResult;
 
+if (!emailTemplate) {
+  this.logger.log(
+    `No email template found for status: ${status}, skipping email sending.`,
+  );
+
+  return res.status(404).json({
+    message: `No email template found for status: ${status}`,
+  });
+}
       // Check if this is a scheduled email
       if (execute_at) {
         const executeAtDate = new Date(execute_at);
@@ -726,41 +735,38 @@ export class RecruitmentService {
             "execute_at must be a future date and time",
           );
         }
-
         // Create scheduled job
-        // const scheduledJob = await this.scheduledJobService.create({
-        //   jobType: SCHEDULED_JOB_TYPE.SEND_EMAIL,
-        //   refType: SCHEDULED_REF_TYPE.CANDIDATE,
-        //   refId: applicationId,
-        //   executeAt: executeAtDate,
-        //   payload: {
-        //     status,
-        //     cc: cc,
-        //     type: input?.type,
-        //     testLink: input.testLink,
-        //     deadline: input.deadline,
-        //     note1: input.note1,
-        //     note2: input.note2,
-        //     testDate: input.testDate,
-        //     interviewDate: input.interviewDate,
-        //     address: input.address,
-        //     mapLink: input.mapLink,
-        //     note3: input.note3,
-        //     contact: input.contact,
-        //     offerDate: input.offerDate,
-        //     // Note: Files cannot be stored in scheduled jobs
-        //     // Files should be saved first and paths stored instead
-        //     attachments: files
-        //       ? files.map((f) => f.path || f.filename)
-        //       : undefined,
-        //   },
-        // });
+  const scheduledJob = await this.scheduledJobService.create({
+  jobType: "send_email",
+  refType: "application",
+  refId: applicationId,
+  executeAt: executeAtDate,
+  payload: {
+    status,
+    cc,
+    type: input?.type,
+    testLink: input.testLink,
+    deadline: input.deadline,
+    note1: input.note1,
+    note2: input.note2,
+    testDate: input.testDate,
+    interviewDate: input.interviewDate,
+    address: input.address,
+    mapLink: input.mapLink,
+    note3: input.note3,
+    contact: input.contact,
+    offerDate: input.offerDate,
+    attachments: files
+      ? files.map((f) => f.path || f.filename || f.originalname)
+      : undefined,
+  },
+});
 
-        // this.logger.log(
-        //   `Scheduled email job ${scheduledJob.id} for ${
-        //     candidate.email
-        //   } at ${executeAtDate.toISOString()}`,
-        // );
+         this.logger.log(
+           `Scheduled email job ${scheduledJob.id} for ${
+             candidate.email
+           } at ${executeAtDate.toISOString()}`,
+         );
 
         return res.status(200).json({
           message: "Email scheduled successfully",
@@ -769,75 +775,64 @@ export class RecruitmentService {
         });
       }
 
-      // Send email immediately if no execute_at
-      // const { data } = emailTemplate;
+       // Send email immediately if no execute_at
+       const data = emailTemplate.data || {};
 
-      // const context = {
-      //   name: candidate.fullName,
-      //   job:
-      //     ((application as any).orderInfo?.position ?? application.position) +
-      //     " " +
-      //     application.level,
-      //   level: application.level,
-      //   is_intern:
-      //     application.level &&
-      //     application.level.toLowerCase().includes("intern"),
-      //   header_image_url: data.header_image_url,
-      //   logo_url: data.logo_url,
-      //   company_name: data.company_name,
-      //   company_address: data.company_address,
-      //   website_url: data.website_url,
-      //   phone: data.phone,
-      //   subject: emailTemplate.subject,
+       const context = {
+         name: candidate.fullName,
+         job:
+           ((application as any).orderInfo?.position ?? application.position) +
+           " " +
+           application.level,
+         level: application.level,
+         is_intern:
+           application.level &&
+           application.level.toLowerCase().includes("intern"),
+header_image_url: data.header_image_url,
+logo_url: data.logo_url,
+company_name: data.company_name,
+company_address: data.company_address,
+website_url: data.website_url,
+phone: data.phone,
+subject: emailTemplate.subject,
 
-      //   type: input?.type,
-      //   test_link: input?.testLink,
-      //   deadline: input?.deadline,
-      //   note1: input?.note1,
-      //   note2: input?.note2,
-      //   test_date: input?.testDate,
-      //   interview_date: input?.interviewDate,
-      //   address: input?.address,
-      //   map_link: input?.mapLink,
-      //   note: input?.note3,
-      //   contact: input?.contact,
-      //   offer_date: input?.offerDate,
-      // };
+         type: input?.type,
+         test_link: input?.testLink,
+         deadline: input?.deadline,
+         note1: input?.note1,
+         note2: input?.note2,
+         test_date: input?.testDate,
+         interview_date: input?.interviewDate,
+         address: input?.address,
+         map_link: input?.mapLink,
+         note: input?.note3,
+         contact: input?.contact,
+         offer_date: input?.offerDate,
+       };
 
       // Prepare attachments from uploaded files
-      // const attachments = files
-      //   ? files.map((file) => {
-      //       // Decode filename to properly handle Vietnamese characters
-      //       // Only decodes if filename is garbled (UTF-8 interpreted as Latin1)
-      //       const decodedFilename = decodeFilename(file.originalname);
+const attachments = files
+  ? files.map((file) => {
+      return {
+        filename: file.originalname,
+        content: file.buffer,
+        contentType: file.mimetype,
+      };
+    })
+  : undefined;
 
-      //       // Log for debugging if garbled was detected
-      //       if (isGarbledUTF8(file.originalname)) {
-      //         this.logger.log(
-      //           `Garbled filename detected and decoded: ${file.originalname} -> ${decodedFilename}`,
-      //         );
-      //       }
+       const ccList = normalizeCc(cc);
 
-      //       return {
-      //         filename: decodedFilename,
-      //         content: file.buffer,
-      //         contentType: file.mimetype,
-      //       };
-      //     })
-      //   : undefined;
+       if (ccList) context["cc"] = ccList.join(", ");
 
-      // const ccList = normalizeCc(cc);
-
-      // if (ccList) context["cc"] = ccList.join(", ");
-
-      // await this.mailRecruitmentService.sendRecruitmentEmail({
-      //   to: candidate.email,
-      //   subject: emailTemplate.subject,
-      //   template: `recruitment_${status}`,
-      //   context,
-      //   attachments,
-      //   ...(ccList ? { cc: ccList } : {}),
-      // });
+       await this.mailRecruitmentService.sendRecruitmentEmail({
+         to: candidate.email,
+         subject: emailTemplate.subject,
+         template: `recruitment_${status}`,
+         context,
+         attachments,
+         ...(ccList ? { cc: ccList } : {}),
+       });
 
       this.logger.log(
         `Sent email immediately to ${candidate.email} for application ${applicationId} with status ${status}`,
@@ -914,7 +909,7 @@ export class RecruitmentService {
       // Build query for applications using string table name
       // Join table rocket_recruitment_candidate_manager_review to get review status and review note
       let queryBuilder = this.dataSource
-        .getRepository("rocket_recruitment_applications")
+        .getRepository("recruitment_applications")
         .createQueryBuilder("app")
         .innerJoinAndSelect("app.candidate", "candidate")
         .leftJoinAndSelect("app.managerReviews", "review")
@@ -928,7 +923,7 @@ export class RecruitmentService {
         )
         .leftJoinAndMapOne(
           "app.creatorInfo",
-          "rocket_personnel",
+          "personnel",
           "creator",
           "app.created_by = creator.personnel_code",
         )
@@ -1060,7 +1055,7 @@ export class RecruitmentService {
       const pipelines = await this.pipelineService.findAll();
 
       let queryBuilder = this.dataSource
-        .getRepository("rocket_recruitment_applications")
+        .getRepository("recruitment_applications")
         .createQueryBuilder("app")
         .innerJoin("app.candidate", "candidate")
         .leftJoinAndMapOne(
@@ -1071,7 +1066,7 @@ export class RecruitmentService {
         )
         .leftJoinAndMapOne(
           "app.creatorInfo",
-          "rocket_personnel",
+          "personnel",
           "creator",
           "app.created_by = creator.personnel_code",
         )
@@ -1149,7 +1144,7 @@ export class RecruitmentService {
       const paginate = new PageRequest(page, size, `${active},${direction}`);
 
       let queryBuilder = this.dataSource
-        .getRepository("rocket_recruitment_applications")
+        .getRepository("recruitment_applications")
         .createQueryBuilder("app")
         .innerJoinAndSelect("app.candidate", "candidate")
         .leftJoinAndSelect("app.managerReviews", "review")
@@ -1163,7 +1158,7 @@ export class RecruitmentService {
         )
         .leftJoinAndMapOne(
           "app.creatorInfo",
-          "rocket_personnel",
+          "personnel",
           "creator",
           "app.created_by = creator.personnel_code",
         )
@@ -1293,8 +1288,8 @@ export class RecruitmentService {
           END) AS orderId,
           COALESCE(o.position, app.position) AS position,
           COUNT(*) as count
-        FROM rocket_recruitment_applications app
-        LEFT JOIN rocket_recruitment_order o ON app.position = CAST(o.id AS CHAR)
+        FROM recruitment_applications app
+        LEFT JOIN recruitment_order o ON app.position = CAST(o.id AS CHAR)
         WHERE app.deleted_at IS NULL
           AND app.position IS NOT NULL
           AND app.position != ''
@@ -1343,7 +1338,7 @@ export class RecruitmentService {
 
       // Build query to find candidate
       let queryBuilder = this.dataSource
-        .getRepository("rocket_recruitment_candidates")
+        .getRepository("recruitment_candidates")
         .createQueryBuilder("candidate")
         .leftJoinAndSelect("candidate.applications", "app")
         .where("candidate.deletedAt IS NULL");
@@ -1383,7 +1378,7 @@ export class RecruitmentService {
 
       // Get all applications for this candidate with order position
       const applications = await this.dataSource
-        .getRepository("rocket_recruitment_applications")
+        .getRepository("recruitment_applications")
         .createQueryBuilder("app")
         .leftJoinAndMapOne(
           "app.orderInfo",

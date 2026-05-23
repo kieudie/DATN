@@ -1,0 +1,218 @@
+<html lang="vi">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <meta name="x-apple-disable-message-reformatting" />
+    <title>{{subject}}</title>
+    <style>
+      /* Email-safe resets */ body, table, td, a { -webkit-text-size-adjust:
+      100%; -ms-text-size-adjust: 100%; } table, td { mso-table-lspace: 0pt;
+      mso-table-rspace: 0pt; } img { -ms-interpolation-mode: bicubic; border: 0;
+      outline: none; text-decoration: none; } table { border-collapse: collapse
+      !important; } body { margin: 0 !important; padding: 0 !important; width:
+      100% !important; height: 100% !important; background-color:#f3f4f6; } a {
+      color: #0b63ce; text-decoration: underline; } /* Simple responsiveness */
+      @media screen and (max-width: 620px) { .container { width: 100%
+      !important; } .px { padding-left: 16px !important; padding-right: 16px
+      !important; } }
+    </style>
+  </head>
+
+  <body>
+    <table
+      role="presentation"
+      width="100%"
+      cellspacing="0"
+      cellpadding="0"
+      border="0"
+      style="background-color:#f3f4f6;"
+    >
+      <tr>
+        <td align="center" style="padding: 24px 12px;">
+          <!-- Container -->
+          <table
+            role="presentation"
+            class="container"
+            width="600"
+            cellspacing="0"
+            cellpadding="0"
+            border="0"
+            style="width:600px;max-width:600px;background:#ffffff;border:1px solid #e5e7eb;"
+          >
+            <!-- Header image -->
+            <tr>
+              <td style="padding:0;">
+                <!-- NOTE: header_image_url must be an absolute URL -->
+                <img
+                  src="{{header_image_url}}"
+                  alt="Welcome to Rocket"
+                  width="600"
+                  style="width:100%;max-width:600px;height:auto;display:block;"
+                />
+              </td>
+            </tr>
+
+            <!-- Body -->
+            <tr>
+              <td
+                class="px"
+                style="padding: 20px 24px 6px 24px; font-family: 'Times New Roman', Times, serif; color:#111827; font-size:14px; line-height:1.6;"
+              >
+                <p style="margin:0 0 10px 0;">Thân gửi bạn
+                  <strong>{{name}}</strong>,</p>
+
+                <p style="margin:0 0 10px 0;">
+                  CG Game Studio chân thành cảm ơn bạn đã quan tâm cơ hội
+                  hợp tác và làm việc tại CG Game Studio.
+                </p>
+
+                <p style="margin:0 0 10px 0;">
+                  Bằng Thư này, chúng tôi trân trọng mời bạn tham gia làm bài
+                  test offline tại CG Game Studio. Thông tin chi tiết như sau:
+                </p>
+
+                <div style="margin:0 0 10px 0;">
+                  <p style="margin:0 0 6px 0;"><strong>1. Vị trí:</strong>
+                    <span
+                      style="color:#1717FF;font-weight:bold;"
+                    >{{job}}</span></p>
+
+                  <p style="margin:0 0 6px 0;"><strong>2. Nội dung bài test:</strong>
+                    Phần kiểm tra tư duy logic và kiến thức chuyên môn</p>
+
+                  <p
+                    style="margin:0 0 10px 12px;font-size:13px;color:#374151;font-style:italic;"
+                  >
+                    Lưu ý: Đối với các vị trí Developer, ứng viên sẽ làm bài
+                    test về ngôn ngữ lập trình (C#, Java hoặc Python) với các
+                    dạng bài tập quen thuộc đã được học trong chương trình đại
+                    học.
+                  </p>
+
+                  <p style="margin:0 0 6px 0;"><strong>3. Địa điểm:</strong>
+                    <span
+                      style="color:#1717FF;font-weight:bold;"
+                    >{{address}}</span></p>
+
+                  <p style="margin:0 0 6px 0;"><strong>4. Thời gian:</strong>
+                    <span
+                      style="color:#1717FF;font-weight:bold;"
+                    >{{test_date}}</span></p>
+
+                  <p style="margin:0 0 6px 0;"><strong>5. Thông tin hỗ trợ khi
+                      đến tham gia làm bài test:</strong>
+                    <span
+                      style="color:#1717FF;font-weight:bold;"
+                    >{{contact}}</span></p>
+                </div>
+
+                <p style="margin:0 0 10px 0;">
+                  Bạn
+                  <strong>vui lòng xác nhận</strong>
+                  tham gia/không tham gia làm bài test bằng cách phản hồi lại
+                  Email này.
+                </p>
+
+                <p style="margin:0 0 10px 0;">
+                  Chúng tôi vui mừng chào đón bạn và hi vọng bạn sẽ gia nhập,
+                  hợp tác và phát triển cùng CG Game Studio.
+                </p>
+
+                <p style="margin:0 0 10px 0;"><strong style="color:#FF2222;">**
+                    Lưu ý:</strong>
+                  <em>{{note}}</em></p>
+
+                <p style="margin:0 0 14px 0;font-style:italic;">Link map:
+                  <a
+                    href="{{map_link}}"
+                    target="_blank"
+                    rel="noopener noreferrer"
+                  >{{map_link}}</a></p>
+
+                <p style="margin:0 0 14px 0;">Team tuyển dụng - CG Game
+                  Studio!</p>
+              </td>
+            </tr>
+
+            <!-- Signature box -->
+            <tr>
+              <td class="px" style="padding: 0 24px 24px 24px;">
+                <table
+                  role="presentation"
+                  width="100%"
+                  cellspacing="0"
+                  cellpadding="0"
+                  border="0"
+                  style="border:1px solid #d1d5db;"
+                >
+                  <tr>
+                    <!-- Logo -->
+                    <td
+                      class="sig-col sig-logo"
+                      width="140"
+                      valign="middle"
+                      align="center"
+                      style="padding:12px;border-right:1px solid #d1d5db;"
+                    >
+                      <!-- NOTE: logo_url must be an absolute URL -->
+                      <img
+                        src="{{logo_url}}"
+                        alt="CG Game Studio"
+                        width="100%"
+                        style="width:100%;max-width:140px;height:auto;display:block;margin:0 auto;"
+                      />
+                    </td>
+
+                    <!-- Info -->
+                    <td
+                      class="sig-col"
+                      valign="top"
+                      style="padding:12px;font-family: 'Lora', serif;"
+                    >
+                      <div
+                        style="font-size:18px;font-weight:700;color:#f58220;line-height:1.2;margin-bottom:6px;"
+                      >
+                        HR Department
+                      </div>
+
+                      <div
+                        style="font-size:12px;color:#f58220;margin-bottom:8px;"
+                      >
+                        <strong>{{company_name}}</strong>
+                      </div>
+
+                      <div
+                        style="font-size:12px;color:#111827;margin-bottom:4px;"
+                      >
+                        A:
+                        {{company_address}}
+                      </div>
+
+                      <div
+                        style="font-size:12px;color:#111827;margin-bottom:4px;"
+                      >
+                        W:
+                        <a
+                          href="{{website_url}}"
+                          target="_blank"
+                          rel="noopener noreferrer"
+                        >{{website_url}}</a>
+                      </div>
+
+                      <div style="font-size:12px;color:#111827;">
+                        M:
+                        {{phone}}
+                      </div>
+                    </td>
+                  </tr>
+                </table>
+              </td>
+            </tr>
+
+          </table>
+          <!-- /Container -->
+        </td>
+      </tr>
+    </table>
+  </body>
+</html>

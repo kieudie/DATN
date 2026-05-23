@@ -1,7 +1,9 @@
 import { Module } from "@nestjs/common";
 import { TypeOrmModule } from "@nestjs/typeorm";
 import { RecruitmentPipeline } from "src/entities/recruitment-pipeline";
+import { MailRecruitmentModule } from "../mail-recruitment/mail-recruitment.module";
 import { RedisCacheModule } from "../redis/redis.module";
+import { ScheduledJobModule } from "../scheduled-job/scheduled-job.module";
 import { ApplicationModule } from "./application/application.module";
 import { CandidateCvModule } from "./candidate-cv/candidate-cv.module";
 import { CandidatePipelineModule } from "./candidate-pipeline/candidate-pipeline.module";
@@ -19,6 +21,8 @@ import { RecruitmentService } from "./recruitment.service";
     CandidatePipelineModule,
     PipelineModule,
     RedisCacheModule,
+    MailRecruitmentModule,
+    ScheduledJobModule,
   ],
   controllers: [RecruitmentController],
   providers: [RecruitmentService],

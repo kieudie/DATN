@@ -1,23 +1,23 @@
 import {
-    Body,
-    Controller,
-    Get,
-    Headers,
-    HttpStatus,
-    Param,
-    ParseIntPipe,
-    Post,
-    Put,
-    Query,
-    Req,
-    Res,
+  Body,
+  Controller,
+  Get,
+  Headers,
+  HttpStatus,
+  Param,
+  ParseIntPipe,
+  Post,
+  Put,
+  Query,
+  Req,
+  Res,
 } from '@nestjs/common';
 import { ApiOperation, ApiResponse, ApiTags } from '@nestjs/swagger';
 import type { Response } from 'express';
 import { CreateRecruitmentOrderDTO } from './dto/create-recruitment-order.dto';
 import {
-    FindAllOrdersByRecruiterQueryDTO,
-    FindAllOrdersQueryDTO,
+  FindAllOrdersByRecruiterQueryDTO,
+  FindAllOrdersQueryDTO,
 } from './dto/find-all-orders-query.dto';
 import { UpdateRecruitmentOrderStatusDTO } from './dto/update-recruitment-order-status.dto';
 import { UpdateRecruitmentOrderDTO } from './dto/update-recruitment-order.dto';

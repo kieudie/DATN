@@ -4,7 +4,7 @@ import {
   NotFoundException,
 } from "@nestjs/common";
 import { InjectDataSource } from "@nestjs/typeorm";
-import { Response } from "express";
+import type { Response } from "express";
 import { DataSource } from "typeorm";
 import { SORT } from "../../common/constants/constants";
 import {
@@ -12,16 +12,23 @@ import {
   RecruitmentOrderStatus,
 } from "../../common/constants/recruitment.constants";
 import { handleResPagination } from "../../common/functions/paginate";
+import { LoggerService } from "../../common/logger/logger.service";
 import { PageRequest } from "../../entities/base/pagination.entity";
+import { RecruitmentApplications } from "../../entities/recruitment-applications";
 import { RecruitmentOrder } from "../../entities/recruitment-order";
 import { BaseHeaderDTO } from "../base/base.header";
 import { CreateRecruitmentOrderDTO } from "./dto/create-recruitment-order.dto";
-import { FindAllOrdersByRecruiterQueryDTO, FindAllOrdersQueryDTO } from "./dto/find-all-orders-query.dto";
+import {
+  FindAllOrdersByRecruiterQueryDTO,
+  FindAllOrdersQueryDTO,
+} from "./dto/find-all-orders-query.dto";
 import { UpdateRecruitmentOrderStatusDTO } from "./dto/update-recruitment-order-status.dto";
 import { UpdateRecruitmentOrderDTO } from "./dto/update-recruitment-order.dto";
 
 @Injectable()
 export class RecruitmentOrderService {
+  private readonly logger = new LoggerService("RecruitmentOrderService");
+
   constructor(@InjectDataSource() private dataSource: DataSource) {}
 
   /**
@@ -52,12 +59,15 @@ export class RecruitmentOrderService {
       const saved = await queryRunner.manager.save(order);
       await queryRunner.commitTransaction();
 
+      this.logger.log(`Created recruitment order with ID: ${saved.id}`);
+
       return res.status(201).json({
         message: "Recruitment order created successfully",
         data: saved,
       });
     } catch (error) {
       await queryRunner.rollbackTransaction();
+
       throw new InternalServerErrorException(
         `Failed to create recruitment order: ${error.message}`,
       );
@@ -84,16 +94,20 @@ export class RecruitmentOrderService {
         );
       }
 
-      // Update fields (excluding status)
       if (dto.team !== undefined) order.team = dto.team;
       if (dto.position !== undefined) order.position = dto.position;
       if (dto.hrLevel !== undefined) order.hrLevel = dto.hrLevel;
       if (dto.note !== undefined) order.note = dto.note;
       if (dto.quantity !== undefined) order.quantity = dto.quantity;
-      if (dto.expiredDate !== undefined)
+
+      if (dto.expiredDate !== undefined) {
         order.expiredDate = dto.expiredDate ? new Date(dto.expiredDate) : null;
-      if (dto.startDate !== undefined)
+      }
+
+      if (dto.startDate !== undefined) {
         order.startDate = dto.startDate ? new Date(dto.startDate) : null;
+      }
+
       if (dto.createdBy !== undefined) order.createdBy = dto.createdBy;
       if (dto.pic !== undefined) order.pic = dto.pic;
 
@@ -107,6 +121,7 @@ export class RecruitmentOrderService {
       if (error instanceof NotFoundException) {
         throw error;
       }
+
       throw new InternalServerErrorException(
         `Failed to update recruitment order: ${error.message}`,
       );
@@ -132,7 +147,11 @@ export class RecruitmentOrderService {
       }
 
       order.status = dto.status;
-      if (dto.pic !== undefined) order.pic = dto.pic;
+
+      if (dto.pic !== undefined) {
+        order.pic = dto.pic;
+      }
+
       const updated = await repo.save(order);
 
       return res.status(200).json({
@@ -143,6 +162,7 @@ export class RecruitmentOrderService {
       if (error instanceof NotFoundException) {
         throw error;
       }
+
       throw new InternalServerErrorException(
         `Failed to update recruitment order status: ${error.message}`,
       );
@@ -166,43 +186,45 @@ export class RecruitmentOrderService {
         .createQueryBuilder("o")
         .where("o.deletedAt IS NULL");
 
-      // Filter by email (created_by)
       if (query.email) {
-        queryBuilder.andWhere("o.created_by = :email", {
+        queryBuilder.andWhere("o.createdBy = :email", {
           email: query.email,
         });
       }
 
-      // Filter by team
       if (query.team) {
-        queryBuilder.andWhere("o.team LIKE :team", { team: `%${query.team}%` });
+        queryBuilder.andWhere("o.team LIKE :team", {
+          team: `%${query.team}%`,
+        });
       }
 
-      // Filter by status
       if (query.status) {
-        queryBuilder.andWhere("o.status = :status", { status: query.status });
+        queryBuilder.andWhere("o.status = :status", {
+          status: query.status,
+        });
       }
 
-      // Search by position or hr_level
       if (query.search) {
         queryBuilder.andWhere(
-          "(o.position LIKE :search OR o.hr_level LIKE :search OR o.created_by LIKE :search)",
+          "(o.position LIKE :search OR o.hrLevel LIKE :search OR o.createdBy LIKE :search)",
           { search: `%${query.search}%` },
         );
       }
 
       if (active && direction) {
         queryBuilder.orderBy(
-          `o.${paginate?.sort?.property}`,
-          (paginate?.sort?.direction).toLocaleUpperCase() === SORT.DESC
+          `o.${paginate.sort.property}`,
+          paginate.sort.direction.toLocaleUpperCase() === SORT.DESC
             ? SORT.DESC
             : SORT.ASC,
         );
+      } else {
+        queryBuilder.orderBy("o.updatedAt", "DESC");
       }
-      //get data and count total records
+
       const [orders, total] = await queryBuilder
-        .take(paginate?.size)
-        .skip(paginate?.skip)
+        .take(paginate.size)
+        .skip(paginate.skip)
         .getManyAndCount();
 
       const result = handleResPagination(
@@ -222,8 +244,8 @@ export class RecruitmentOrderService {
 
   /**
    * Get all orders for recruiter view, grouped by status.
-   * Each order includes a processedCount (number of applications that matched
-   * the order's position AND have status = 'onboarding').
+   * Each order includes processedCount:
+   * number of applications that matched the order id and have status = onboarding.
    */
   async getAllOrdersByRecruiter(
     query: FindAllOrdersByRecruiterQueryDTO,
@@ -251,14 +273,13 @@ export class RecruitmentOrderService {
 
       const orders = await queryBuilder.getMany();
 
-      // For each order, count applications where position matches AND status = onboarding
       const ordersWithCount = await Promise.all(
         orders.map(async (order) => {
           let processedCount = 0;
 
-          if (order.position) {
-            const count = await this.dataSource
-              .getRepository("recruitment_applications")
+          if (order.id) {
+            processedCount = await this.dataSource
+              .getRepository(RecruitmentApplications)
               .createQueryBuilder("app")
               .where("app.position = :position", {
                 position: String(order.id),
@@ -268,8 +289,6 @@ export class RecruitmentOrderService {
               })
               .andWhere("app.deletedAt IS NULL")
               .getCount();
-
-            processedCount = count;
           }
 
           return {
@@ -279,10 +298,11 @@ export class RecruitmentOrderService {
         }),
       );
 
-      // Group by status
       const statuses = Object.values(RecruitmentOrderStatus);
+
       const grouped = statuses.map((status) => {
-        const items = ordersWithCount.filter((o) => o.status === status);
+        const items = ordersWithCount.filter((order) => order.status === status);
+
         return {
           status,
           count: items.length,
