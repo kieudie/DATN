@@ -12,6 +12,7 @@ import {
   UpdateDateColumn,
 } from "typeorm";
 import { BaseEntity } from "./base/base.entity";
+import { RecruitmentCandidateManagerReview } from './recruitment-candidate-manager-review';
 import { RecruitmentCandidatePipeline } from "./recruitment-candidate-pipeline";
 import { RecruitmentCandidates } from "./recruitment-candidates";
 import { RecruitmentCandidatesCv } from "./recruitment-candidates-cv";
@@ -119,9 +120,9 @@ export class RecruitmentApplications extends BaseEntity {
   )
   pipelineHistory: RecruitmentCandidatePipeline[];
 
-  // @OneToMany(
-  //   () => RecruitmentCandidateManagerReview,
-  //   (managerReview) => managerReview.application,
-  // )
-  // managerReviews: RecruitmentCandidateManagerReview[];
+  @OneToMany(
+    () => RecruitmentCandidateManagerReview,
+   (managerReview) => managerReview.application,
+  )
+  managerReviews: RecruitmentCandidateManagerReview[];
 }

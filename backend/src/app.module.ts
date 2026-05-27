@@ -13,6 +13,7 @@ import { RolesModule } from './main/roles/roles.module';
 import { UsersModule } from './main/users/users.module';
 
 import { RecruitmentModule } from './main/recruitment-candidate/recruitment.module';
+import { RecruitmentManagerModule } from './main/recruitment-manager/recruitment-manager.module';
 import { RecruitmentOrderModule } from './main/recruitment-order/recruitment-order.module';
 import { ormConfig } from './typeorm/orm.config';
 @Module({
@@ -30,6 +31,7 @@ import { ormConfig } from './typeorm/orm.config';
     UsersModule,
     RecruitmentModule,
     RecruitmentOrderModule,
+    RecruitmentManagerModule,
   ],
 })
 export class AppModule {}
