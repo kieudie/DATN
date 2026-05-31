@@ -10,8 +10,7 @@ import { InjectDataSource, InjectRepository } from "@nestjs/typeorm";
 import { Response } from "express";
 import {
   PIPELINE_RESULT,
-  RECRUITMENT_PIPELINE_CODES,
-  TestOnlineStatus,
+  RECRUITMENT_PIPELINE_CODES
 } from "src/common/constants/recruitment.constants";
 import { RecruitmentManagerPermission } from "src/entities/recruitment-manager-permission";
 import { RoleType } from "src/security";
@@ -241,8 +240,8 @@ const response: ManagerResponseDTO = {
       const sortDirection =
         direction?.toUpperCase() === SORT.ASC ? SORT.ASC : SORT.DESC;
       queryBuilder.orderBy(`manager.${sortField}`, sortDirection);
-
       // Get total count
+      
       const total = await queryBuilder.getCount();
 
       // Apply pagination
@@ -449,10 +448,11 @@ const response: ManagerResponseDTO = {
       // We need to find all order IDs where order.position matches any specialization
       let matchingOrderIds: number[] = [];
       if (managerSpecializations.length > 0) {
-        const orderQueryBuilder = this.dataSource
-          .getRepository("recruitment_order")
-          .createQueryBuilder("ord")
-          .where("ord.deleted_at IS NULL");
+const orderQueryBuilder = this.dataSource
+  .createQueryBuilder()
+  .select('ord')
+  .from('recruitment_orders', 'ord')
+  .where('ord.deleted_at IS NULL');
 
         const specConditions = managerSpecializations
           .map((spec, index) => {
@@ -475,87 +475,116 @@ const response: ManagerResponseDTO = {
       }
 
       // Query to get candidates grouped by result
-      const queryBuilder = this.dataSource
-        .getRepository("recruitment_applications")
-        .createQueryBuilder("app")
-        .innerJoinAndSelect("app.candidate", "candidate")
-        .leftJoinAndSelect("app.cvs", "cv")
-        .innerJoin(
-          "recruitment_candidate_pipeline",
-          "pipeline",
-          "pipeline.application_id = app.id AND pipeline.candidate_id = app.candidateId",
-        )
+      
+const queryBuilder = this.dataSource
+  .createQueryBuilder()
+  .from("applications", "app")
+  .innerJoin(
+    "candidates",
+    "candidate",
+    "candidate.id = app.candidate_id AND candidate.deleted_at IS NULL",
+  )
+  .leftJoin(
+    "candidate_cvs",
+    "cv",
+    "cv.application_id = app.id",
+  )
+.innerJoin(
+  "candidate_pipeline",
+  "pipeline",
+  "pipeline.application_id = app.id AND pipeline.candidate_id = app.candidate_id AND pipeline.end_time IS NULL AND pipeline.recruitment_pipeline_code = :departmentReviewCode",
+)
         // Left join order table to get position name (app.position = order.id)
         .leftJoin(
-          "recruitment_order",
+          "recruitment_orders",
           "ord",
           "ord.id = CAST(app.position AS UNSIGNED)",
         )
         .addSelect("ord.position", "orderPositionName")
         .where(`(${departmentConditions})`, departmentParams);
-
+queryBuilder.setParameter(
+  "departmentReviewCode",
+  RECRUITMENT_PIPELINE_CODES.DEPARTMENT_REVIEW,
+);
       // Filter by matching order IDs (specialization filter)
-      if (matchingOrderIds.length > 0) {
-        queryBuilder.andWhere(
-          "CAST(app.position AS UNSIGNED) IN (:...orderIds)",
-          { orderIds: matchingOrderIds },
-        );
-      }
+    //  if (matchingOrderIds.length > 0) {
+      //  queryBuilder.andWhere(
+       //   "CAST(app.position AS UNSIGNED) IN (:...orderIds)",
+        //  { orderIds: matchingOrderIds },
+       // );
+    //  }
+// Filter by specialization.
+// Project mới hiện có application.position có thể là order.id hoặc position name.
+if (managerSpecializations.length > 0) {
+  const specConditions = managerSpecializations
+    .map((spec, index) => {
+      return `(app.position LIKE :appSpec${index} OR ord.position LIKE :ordSpec${index})`;
+    })
+    .join(" OR ");
 
+  const specParams = {};
+  managerSpecializations.forEach((spec, index) => {
+    specParams[`appSpec${index}`] = `%${spec}%`;
+    specParams[`ordSpec${index}`] = `%${spec}%`;
+  });
+
+  queryBuilder.andWhere(`(${specConditions})`, specParams);
+}
       queryBuilder
-        .andWhere("app.test_online_status = :testStatus", {
-          testStatus: TestOnlineStatus.PASSED,
-        })
-        .andWhere("app.deletedAt IS NULL")
-        .andWhere("candidate.deletedAt IS NULL")
-        .select([
-          "app.id",
-          "app.candidateId",
-          "app.position",
-          "app.level",
-          "app.department",
-          "app.source",
-          "app.appliedDate",
-          "app.status",
-          "app.testOnlineStatus",
-          "app.note",
-          "app.iqTest",
-          "app.techTest",
-          "app.thinkingTest",
-          "app.createdAt",
-          "app.updatedAt",
-          "app.gpa",
-          "candidate.id",
-          "candidate.fullName",
-          "candidate.email",
-          "candidate.phone",
-          "candidate.gender",
-          "candidate.universitySchool",
-          "candidate.birthday",
-          "cv.id",
-          "cv.filePath",
-          "cv.productLinks",
-          "cv.createdAt",
-          "pipeline.id",
-          "pipeline.result",
-          "pipeline.recruitmentPipelineCode",
-          "pipeline.startTime",
-          "pipeline.endTime",
-          "pipeline.note",
-        ])
-        .addSelect("pipeline.result", "pipeline_result")
-        .addSelect("ord.position", "orderPositionName");
+      //  .andWhere("app.test_online_status = :testStatus", {
+        //  testStatus: TestOnlineStatus.PASSED,
+       // })
+        .andWhere("app.deleted_at IS NULL")
+.andWhere("candidate.deleted_at IS NULL")
+      .select([
+  "app.id AS app_id",
+  "app.candidate_id AS app_candidate_id",
+  "app.position AS app_position",
+  "app.level AS app_level",
+  "app.department AS app_department",
+  "app.source AS app_source",
+  "app.applied_date AS app_applied_date",
+  "app.status AS app_status",
+  "app.test_online_status AS app_test_online_status",
+  "app.note AS app_note",
+  "app.iq_test AS app_iq_test",
+  "app.tech_test AS app_tech_test",
+  "app.thinking_test AS app_thinking_test",
+  "app.created_at AS app_created_at",
+  "app.updated_at AS app_updated_at",
+  "app.gpa AS app_gpa",
 
-      const rawAndEntities = await queryBuilder.getRawAndEntities();
-      const results = rawAndEntities.entities;
+  "candidate.id AS candidate_id",
+  "candidate.full_name AS candidate_full_name",
+  "candidate.email AS candidate_email",
+  "candidate.phone AS candidate_phone",
+  "candidate.gender AS candidate_gender",
+  "candidate.university_school AS candidate_university_school",
+  "candidate.birthday AS candidate_birthday",
 
-      // Build a map from app.id to order position name from raw results
-      const orderPositionMap = new Map<number, string>();
-      for (const raw of rawAndEntities.raw) {
-        if (raw.app_id && raw.orderPositionName) {
-          orderPositionMap.set(raw.app_id, raw.orderPositionName);
-        }
-      }
+  "cv.id AS cv_id",
+  "cv.file_path AS cv_file_path",
+  "cv.product_links AS cv_product_links",
+  "cv.created_at AS cv_created_at",
+
+  "pipeline.id AS pipeline_id",
+  "pipeline.result AS pipeline_result",
+  "pipeline.recruitment_pipeline_code AS pipeline_recruitment_pipeline_code",
+  "pipeline.start_time AS pipeline_start_time",
+  "pipeline.end_time AS pipeline_end_time",
+  "pipeline.note AS pipeline_note",
+])
+.addSelect("ord.position", "orderPositionName");
+
+const results = await queryBuilder.getRawMany();
+
+// Build a map from app.id to order position name from raw results
+const orderPositionMap = new Map<number, string>();
+for (const raw of results) {
+  if (raw.app_id && raw.orderPositionName) {
+    orderPositionMap.set(raw.app_id, raw.orderPositionName);
+  }
+}
 
       // Group results by 4 categories based on review table
       const groupedByResult = {
@@ -567,18 +596,31 @@ const response: ManagerResponseDTO = {
 
       for (const app of results) {
         // Get pipeline history for this application to get notes
-        const pipelineHistory = await this.dataSource
-          .getRepository("recruitment_candidate_pipeline")
-          .createQueryBuilder("pipeline")
-          .where("pipeline.application_id = :appId", { appId: app.id })
-          .andWhere("pipeline.candidate_id = :candidateId", {
-            candidateId: app.candidateId,
-          })
-          .andWhere("pipeline.recruitment_pipeline_code = :appStatus", {
-            appStatus: RECRUITMENT_PIPELINE_CODES.IQ_TEST,
-          })
-          .orderBy("pipeline.created_at", "DESC")
-          .getMany();
+       // const pipelineHistory = await this.dataSource
+        //  .getRepository("candidate_pipeline")
+        //  .createQueryBuilder("pipeline")
+        //  .where("pipeline.application_id = :appId", { appId: app.id })
+         // .andWhere("pipeline.candidate_id = :candidateId", {
+      //      candidateId: app.candidateId,
+       //   })
+        //  .andWhere("pipeline.recruitment_pipeline_code = :appStatus", {
+         //   appStatus: RECRUITMENT_PIPELINE_CODES.IQ_TEST,
+        //  })
+        //  .orderBy("pipeline.created_at", "DESC")
+       //   .getMany();
+       const pipelineHistory = await this.dataSource
+        .createQueryBuilder()
+         .select("pipeline")
+        .from("candidate_pipeline", "pipeline")
+       .where("pipeline.application_id = :appId", { appId: app.id })
+        .andWhere("pipeline.candidate_id = :candidateId", {
+        candidateId: app.candidate_id,
+     })
+       .andWhere("pipeline.recruitment_pipeline_code = :appStatus", {
+       appStatus: RECRUITMENT_PIPELINE_CODES.IQ_TEST,
+     })
+     .orderBy("pipeline.created_at", "DESC")
+      .getRawMany();
 
         // Get the candidate's review records
         const reviewRecords = await this.dataSource
@@ -588,60 +630,73 @@ const response: ManagerResponseDTO = {
           .orderBy("review.created_at", "DESC")
           .getMany();
 
-        const candidateData = {
-          applicationId: app.id,
-          candidateId: app.candidate.id,
-          fullName: app.candidate.fullName,
-          email: app.candidate.email,
-          phone: app.candidate.phone,
-          gender: app.candidate.gender,
-          universitySchool: app.candidate.universitySchool,
-          position: orderPositionMap.get(app.id) || app.position,
-          orderId: app.position,
-          level: app.level,
-          department: app.department,
-          source: app.source,
-          appliedDate: app.appliedDate,
-          status: app.status,
-          testOnlineStatus: app.testOnlineStatus,
-          note: app.note,
-          gpa: app.gpa,
-          productLinks:
-            app.cvs && app.cvs.length > 0 ? app.cvs[0].productLinks : null,
-          birthday: app.candidate.birthday,
-          iqTest: app.iqTest,
-          techTest: app.techTest,
-          thinkingTest: app.thinkingTest,
-          cvPath: app.cvs && app.cvs.length > 0 ? app.cvs[0].filePath : null,
-          reviewManager:
-            reviewRecords.length > 0
-              ? reviewRecords.map((r) => ({
-                  reviewerId: r.reviewer_id,
-                  pipelineCode: r.pipeline_code,
-                  status: r.status,
-                  note: r.note,
-                  reviewedAt: r.reviewed_at,
-                }))
-              : null,
-          pipelineHistory: pipelineHistory.map((p) => ({
-            id: p.id,
-            recruitmentPipelineCode: p.recruitmentPipelineCode,
-            result: p.result,
-            startTime: p.startTime,
-            endTime: p.endTime,
-            note: p.note,
-          })),
-          createdAt: app.createdAt,
-          updatedAt: app.updatedAt,
-        };
-
+const candidateData = {
+  applicationId: app.app_id ?? app.id,
+  candidateId: app.app_candidate_id ?? app.candidate_id,
+  fullName: app.candidate_full_name,
+  email: app.candidate_email,
+  phone: app.candidate_phone,
+  gender: app.candidate_gender,
+  universitySchool: app.candidate_university_school,
+  position: orderPositionMap.get(app.app_id ?? app.id) || app.app_position || app.position,
+  orderId: app.app_position ?? app.position,
+  level: app.app_level ?? app.level,
+  department: app.app_department ?? app.department,
+  source: app.app_source ?? app.source,
+  appliedDate: app.app_applied_date ?? app.applied_date,
+  status: app.app_status ?? app.status,
+  testOnlineStatus: app.app_test_online_status ?? app.test_online_status,
+  note: app.app_note ?? app.note,
+  gpa: app.app_gpa ?? app.gpa,
+  productLinks: app.cv_product_links ?? null,
+  birthday: app.candidate_birthday,
+  iqTest: app.app_iq_test ?? app.iq_test,
+  techTest: app.app_tech_test ?? app.tech_test,
+  thinkingTest: app.app_thinking_test ?? app.thinking_test,
+  cvPath: app.cv_file_path ?? null,
+  reviewManager:
+    reviewRecords.length > 0
+      ? reviewRecords.map((r) => ({
+          reviewerId: r.reviewer_id,
+          pipelineCode: r.pipeline_code,
+          status: r.status,
+          note: r.note,
+          reviewedAt: r.reviewed_at,
+        }))
+      : null,
+  pipelineHistory: pipelineHistory.map((p) => ({
+    id: p.pipeline_id ?? p.id,
+    recruitmentPipelineCode:
+      p.pipeline_recruitment_pipeline_code ?? p.recruitment_pipeline_code,
+    result: p.pipeline_result ?? p.result,
+    startTime: p.pipeline_start_time ?? p.start_time,
+    endTime: p.pipeline_end_time ?? p.end_time,
+    note: p.pipeline_note ?? p.note,
+  })),
+  createdAt: app.app_created_at ?? app.created_at,
+  updatedAt: app.app_updated_at ?? app.updated_at,
+};
         // Categorize candidate based on latest review records
-        categorizeCandidateByReviewStatus(
-          reviewRecords,
-          candidateData,
-          groupedByResult,
-          managers.map((m) => m.id),
-        );
+      ////  categorizeCandidateByReviewStatus(
+      //    reviewRecords,
+        //  candidateData,
+        //  groupedByResult,
+       //   managers.map((m) => m.id),
+       // );
+     // }
+     // Nếu chưa có review nào thì đưa vào danh sách cần đánh giá
+if (!reviewRecords || reviewRecords.length === 0) {
+  groupedByResult.needReview.push(candidateData);
+  continue;
+}
+
+// Categorize candidate based on latest review records
+categorizeCandidateByReviewStatus(
+  reviewRecords,
+  candidateData,
+  groupedByResult,
+  managers.map((m) => m.id),
+);
       }
 
       return res.status(200).json({
@@ -745,7 +800,7 @@ const response: ManagerResponseDTO = {
       ) {
         // Get the application to find candidateId
         const application = await queryRunner.manager.query(
-          `SELECT candidate_id FROM recruitment_applications WHERE id = ?`,
+          `SELECT candidate_id FROM applications WHERE id = ?`,
           [createReviewDto.application_id],
         );
 
@@ -754,7 +809,7 @@ const response: ManagerResponseDTO = {
 
           // Fetch the latest application for this candidate
           const latestApplication = await queryRunner.manager.query(
-            `SELECT id FROM recruitment_applications WHERE candidate_id = ? ORDER BY id DESC LIMIT 1`,
+            `SELECT id FROM applications WHERE candidate_id = ? ORDER BY id DESC LIMIT 1`,
             [candidateId],
           );
 
@@ -763,7 +818,7 @@ const response: ManagerResponseDTO = {
 
             // Get current active pipeline (if exists) to close it
             const currentPipeline = await queryRunner.manager.query(
-              `SELECT id, recruitment_pipeline_code FROM recruitment_candidate_pipeline 
+              `SELECT id, recruitment_pipeline_code FROM candidate_pipeline 
                WHERE application_id = ? AND end_time IS NULL LIMIT 1`,
               [appId],
             );
@@ -771,7 +826,7 @@ const response: ManagerResponseDTO = {
             if (currentPipeline && currentPipeline.length > 0) {
               // Close the current pipeline
               await queryRunner.manager.query(
-                `UPDATE recruitment_candidate_pipeline 
+                `UPDATE candidate_pipeline 
                  SET end_time = NOW(), result = ? 
                  WHERE id = ?`,
                 [PIPELINE_RESULT.PASS, currentPipeline[0].id],
@@ -789,14 +844,14 @@ const response: ManagerResponseDTO = {
               RECRUITMENT_PIPELINE_CODES.FAIL,
             ];
             const existingPipeline = await queryRunner.manager.query(
-              `SELECT id FROM recruitment_candidate_pipeline 
+              `SELECT id FROM candidate_pipeline 
                WHERE application_id = ? AND recruitment_pipeline_code IN (?) LIMIT 1`,
               [appId, blockedCodes],
             );
 
             if (!existingPipeline || existingPipeline.length === 0) {
               await queryRunner.manager.query(
-                `INSERT INTO recruitment_candidate_pipeline 
+                `INSERT INTO candidate_pipeline 
                  (candidate_id, application_id, recruitment_pipeline_code, start_time, result, note, created_by) 
                  VALUES (?, ?, ?, NOW(), ?, ?, ?)`,
                 [
@@ -811,7 +866,7 @@ const response: ManagerResponseDTO = {
 
               // Update application status
               await queryRunner.manager.query(
-                `UPDATE recruitment_applications 
+                `UPDATE applications 
                SET status = ? 
                WHERE id = ?`,
                 [createReviewDto.pipeline_code, appId],
@@ -825,7 +880,9 @@ const response: ManagerResponseDTO = {
       this.logger.log(
         `createCandidateReview committed application=${createReviewDto.application_id}`,
       );
-
+    return {
+       message: 'Candidate review submitted successfully',
+      };
       // Send socket notification when status is APPROVE or REJECT
       if (
         [ReviewStatus.APPROVE, ReviewStatus.REJECT].includes(
@@ -834,10 +891,10 @@ const response: ManagerResponseDTO = {
       ) {
         const result = await this.dataSource.query(
           `
-    SELECT c.full_name
-    FROM recruitment_applications a
-    JOIN recruitment_candidates c ON c.id = a.candidate_id
-    WHERE a.id = ?
+       SELECT c.full_name
+       FROM applications a
+       JOIN candidates c ON c.id = a.candidate_id
+        WHERE a.id = ?
     `,
           [createReviewDto.application_id],
         );
@@ -1061,27 +1118,35 @@ const response: ManagerResponseDTO = {
           "cv.file_path AS cv_file_path",
           "cv.product_links AS cv_product_links",
         ])
-        .from("recruitment_candidates", "c")
-        .innerJoin(
-          "recruitment_applications",
-          "a",
-          "a.candidate_id = c.id AND a.deleted_at IS NULL",
-        )
-        .leftJoin(
-          "recruitment_candidates_cv",
-          "cv",
-          "cv.application_id = a.id",
-        )
-        .leftJoin(
-          "recruitment_order",
-          "o",
-          "o.id = CAST(a.position AS UNSIGNED) AND o.deleted_at IS NULL",
-        )
-        .where("c.deleted_at IS NULL");
-
+.from("candidates", "c")
+.innerJoin(
+  "applications",
+  "a",
+  "a.candidate_id = c.id AND a.deleted_at IS NULL",
+)
+.leftJoin(
+  "candidate_cvs",
+  "cv",
+  "cv.application_id = a.id",
+)
+.leftJoin(
+  "recruitment_orders",
+  "o",
+  "o.id = CAST(a.position AS UNSIGNED) AND o.deleted_at IS NULL",
+)
+.innerJoin(
+  "candidate_pipeline",
+  "pipeline",
+  "pipeline.application_id = a.id AND pipeline.candidate_id = a.candidate_id AND pipeline.end_time IS NULL AND pipeline.recruitment_pipeline_code = :departmentReviewCode",
+)
+.where("c.deleted_at IS NULL")
+.setParameter(
+  "departmentReviewCode",
+  RECRUITMENT_PIPELINE_CODES.DEPARTMENT_REVIEW,
+);
       if (fullname) {
         queryBuilder = queryBuilder.andWhere(
-          "(c.full_name LIKE :fullname OR o.position LIKE :fullname)",
+          "(c.full_name LIKE :fullname OR a.position LIKE :fullname OR o.position LIKE :fullname)",
           {
             fullname: `%${fullname}%`,
           },
@@ -1104,12 +1169,18 @@ const response: ManagerResponseDTO = {
         // is_techlead = "Tester_1" → extract position prefix "Tester"
         const techleadPosition = manager.is_techlead.replace(/_\d+$/, "");
         // Techlead can see all candidates where order.position matches, regardless of department
-        queryBuilder = queryBuilder.andWhere(
-          "o.position LIKE :techleadPosition",
-          {
-            techleadPosition: `%${techleadPosition}%`,
-          },
-        );
+       // queryBuilder = queryBuilder.andWhere(
+       //   "o.position LIKE :techleadPosition",
+         // {
+           // techleadPosition: `%${techleadPosition}%`,
+        //  },
+       // );
+       queryBuilder = queryBuilder.andWhere(
+  "(a.position LIKE :techleadPosition OR o.position LIKE :techleadPosition)",
+  {
+    techleadPosition: `%${techleadPosition}%`,
+  },
+);
       } else {
         // Normal manager: filter by department and specialization
         const conditions: string[] = [];
@@ -1138,11 +1209,25 @@ const response: ManagerResponseDTO = {
           if (specializations.length > 0) {
             const specConditions = specializations.map((spec, i) => {
               params[`spec_${i}`] = `%${spec}%`;
-              return `o.position LIKE :spec_${i}`;
+             return `(a.position LIKE :spec_${i} OR o.position LIKE :spec_${i})`;
             });
             conditions.push(`(${specConditions.join(" OR ")})`);
           }
-        }
+        }if (manager.specialization) {
+  const specializations = manager.specialization
+    .split(",")
+    .map((s) => s.trim())
+    .filter((s) => s);
+
+  if (specializations.length > 0) {
+    const specConditions = specializations.map((spec, i) => {
+      params[`spec_${i}`] = `%${spec}%`;
+      return `(a.position LIKE :spec_${i} OR o.position LIKE :spec_${i})`;
+    });
+
+    conditions.push(`(${specConditions.join(" OR ")})`);
+  }
+}
 
         if (conditions.length > 0) {
           queryBuilder = queryBuilder.andWhere(

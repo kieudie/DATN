@@ -15,8 +15,8 @@ function copyGlob(pattern: string, targetDir: string) {
 }
 
 copyGlob('src/config/*.yml', 'dist/src/config');
-copyGlob('src/main/mail/templates', 'dist/src/main/mail');
+copyGlob('src/main/mail/templates/*', 'dist/src/main/mail/templates');
 copyGlob(
-  'src/main/mail-recruitment/templates',
-  'dist/src/main/mail-recruitment',
+  'src/main/mail-recruitment/templates/*',
+  'dist/src/main/mail-recruitment/templates',
 );

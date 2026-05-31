@@ -4,7 +4,7 @@ import { RecruitmentCandidateManagerReview } from "src/entities/recruitment-cand
 import { RecruitmentManager } from "../../entities/recruitment-manager";
 //import { PersonnelRoleModule } from "../personnel-role/personnel-role.module";
 import { RedisCacheModule } from "../redis/redis.module";
-//import { SocketModule } from "../socket/socket.module";
+import { SocketModule } from "../socket/socket.module";
 import { RecruitmentManagerController } from "./recruitment-manager.controller";
 import { RecruitmentManagerService } from "./recruitment-manager.service";
 
@@ -16,7 +16,7 @@ import { RecruitmentManagerService } from "./recruitment-manager.service";
     ]),
     //PersonnelRoleModule,
     RedisCacheModule,
-    //SocketModule,
+    SocketModule,
   ],
   controllers: [RecruitmentManagerController],
   providers: [RecruitmentManagerService],

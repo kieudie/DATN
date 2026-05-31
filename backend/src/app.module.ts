@@ -12,9 +12,11 @@ import { RolePageModule } from './main/role-page/role-page.module';
 import { RolesModule } from './main/roles/roles.module';
 import { UsersModule } from './main/users/users.module';
 
+import { NotificationModule } from "./main/notification/notification.module";
 import { RecruitmentModule } from './main/recruitment-candidate/recruitment.module';
 import { RecruitmentManagerModule } from './main/recruitment-manager/recruitment-manager.module';
 import { RecruitmentOrderModule } from './main/recruitment-order/recruitment-order.module';
+import { SocketModule } from "./main/socket/socket.module";
 import { ormConfig } from './typeorm/orm.config';
 @Module({
   imports: [
@@ -32,6 +34,8 @@ import { ormConfig } from './typeorm/orm.config';
     RecruitmentModule,
     RecruitmentOrderModule,
     RecruitmentManagerModule,
+    SocketModule,
+    NotificationModule,
   ],
 })
 export class AppModule {}

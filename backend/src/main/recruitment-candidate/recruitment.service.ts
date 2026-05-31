@@ -17,11 +17,15 @@ import {
 import { handleResPagination } from "../../common/functions/paginate";
 import { LoggerService } from "../../common/logger/logger.service";
 import { PageRequest } from "../../entities/base/pagination.entity";
+import { ReviewStatus } from "../../entities/recruitment-candidate-manager-review";
 import { RecruitmentOrder } from "../../entities/recruitment-order";
+import { RoleType } from "../../security";
 import { BaseHeaderDTO } from "../base/base.header";
 import { EmailTemplateService } from "../mail-recruitment/email-template.service";
 import { MailRecruitmentService } from "../mail-recruitment/mail-recruitment.service";
+import { RecruitmentManagerService } from "../recruitment-manager/recruitment-manager.service";
 import { ScheduledJobService } from "../scheduled-job/scheduled-job.service";
+import { SocketGateway } from "../socket/socket.gateway";
 import { ApplicationService } from "./application/application.service";
 import { CandidateCvService } from "./candidate-cv/candidate-cv.service";
 import { CandidatePipelineService } from "./candidate-pipeline/candidate-pipeline.service";
@@ -55,6 +59,8 @@ export class RecruitmentService {
     private readonly emailTemplateService: EmailTemplateService,
     private readonly mailRecruitmentService: MailRecruitmentService,
     private readonly scheduledJobService: ScheduledJobService,
+    private readonly recruitmentManagerService: RecruitmentManagerService,
+    private readonly socketGateway: SocketGateway,
     private dataSource: DataSource,
   ) {}
 
@@ -304,93 +310,93 @@ export class RecruitmentService {
       }
 
       // 4. If testOnlineStatus = TestOnlineStatus.PASS, add a record to recruitment candidate manager review with status pending, using recruitmentManagerService.createCandidateReview
-      // if (
-      //   updateApplicationDto.testOnlineStatus === TestOnlineStatus.PASSED &&
-      //   application.status === RECRUITMENT_PIPELINE_CODES.IQ_TEST
-      // ) {
-      //   const departmentNames = application.department
-      //     .split(",")
-      //     .map((d) => d.trim());
-      //   const mailManagers =
-      //     await this.recruitmentManagerService.findMailManagersByDepartments(
-      //       departmentNames,
-      //     );
+       if (
+         updateApplicationDto.testOnlineStatus === TestOnlineStatus.PASSED &&
+         application.status === RECRUITMENT_PIPELINE_CODES.IQ_TEST
+       ) {
+         const departmentNames = application.department
+           .split(",")
+           .map((d) => d.trim());
+         const mailManagers =
+           await this.recruitmentManagerService.findMailManagersByDepartments(
+             departmentNames,
+           );
 
-      //   if (!mailManagers || mailManagers.length === 0) {
-      //     throw new NotFoundException(
-      //       `Mail manager not found for departments: ${departmentNames.join(
-      //         ", ",
-      //       )}`,
-      //     );
-      //   }
+         if (!mailManagers || mailManagers.length === 0) {
+           throw new NotFoundException(
+             `Mail manager not found for departments: ${departmentNames.join(
+               ", ",
+             )}`,
+           );
+         }
 
-      //   for (const manager of mailManagers) {
-      //     this.logger.log(
-      //       `Found mail manager ${
-      //         manager.email
-      //       } for department(s): ${departmentNames.join(", ")}`,
-      //     );
+         for (const manager of mailManagers) {
+           this.logger.log(
+             `Found mail manager ${
+               manager.email
+             } for department(s): ${departmentNames.join(", ")}`,
+           );
 
-      //     await this.recruitmentManagerService.createCandidateReview(
-      //       {
-      //         application_id: application.id,
-      //         pipeline_code: RECRUITMENT_PIPELINE_CODES.DEPARTMENT_REVIEW,
-      //         status: ReviewStatus.PENDING,
-      //       },
-      //       manager.email,
-      //     );
-      //   }
+           await this.recruitmentManagerService.createCandidateReview(
+             {
+               application_id: application.id,
+              pipeline_code: RECRUITMENT_PIPELINE_CODES.DEPARTMENT_REVIEW,
+              status: ReviewStatus.PENDING,
+            },
+      manager.email,
+          );
+        }
 
-      //   // Get candidate name for notification
-      //   const candidate = await this.candidateService.findById(
-      //     application.candidateId,
-      //   );
+       // Get candidate name for notification
+      const candidate = await this.candidateService.findById(
+          application.candidateId,
+        );
 
-      //   // Look up the order's position name (used as specialization for room targeting)
-      //   const orderRows: { position: string }[] = await this.dataSource.query(
-      //     `SELECT position FROM rocket_recruitment_order WHERE id = ? LIMIT 1`,
-      //     [application.position],
-      //   );
-      //   const orderPosition = orderRows?.[0]?.position?.trim() || "";
+      // Look up the order's position name (used as specialization for room targeting)
+       const orderRows: { position: string }[] = await this.dataSource.query(
+         `SELECT position FROM recruitment_order WHERE id = ? LIMIT 1`,
+          [application.position],
+        );
+      const orderPosition = orderRows?.[0]?.position?.trim() || "";
 
-      //   // Build targeted rooms: recruitment_manager_{dept}_{orderPosition}
-      //   const notifyRooms: string[] = orderPosition
-      //     ? departmentNames.map((dept) =>
-      //         SocketGateway.buildManagerRoom(dept, orderPosition),
-      //       )
-      //     : [`recruitment_${RoleType.RECRUITMENT_MANAGER}`]; // fallback to generic
+      // Build targeted rooms: recruitment_manager_{dept}_{orderPosition}
+         const notifyRooms: string[] = orderPosition
+           ? departmentNames.map((dept) =>
+      SocketGateway.buildManagerRoom(dept, orderPosition),
+      )
+          : [`recruitment_${RoleType.RECRUITMENT_MANAGER}`]; // fallback to generic
 
-      //   // Narrow to managers whose specialization includes the order position
-      //   const targetManagers =
-      //     orderPosition && mailManagers.some((m) => m.specialization)
-      //       ? mailManagers.filter((m) => {
-      //           if (!m.specialization) return true;
-      //           const specs = m.specialization
-      //             .split(",")
-      //             .map((s) => s.trim().toLowerCase());
-      //           const pos = orderPosition.toLowerCase();
-      //           return specs.some(
-      //             (spec) => spec.includes(pos) || pos.includes(spec),
-      //           );
-      //         })
-      //       : mailManagers;
+        // Narrow to managers whose specialization includes the order position
+        const targetManagers =
+      orderPosition && mailManagers.some((m) => m.specialization)
+            ? mailManagers.filter((m) => {
+                if (!m.specialization) return true;
+               const specs = m.specialization
+                 .split(",")
+                   .map((s) => s.trim().toLowerCase());
+               const pos = orderPosition.toLowerCase();
+                 return specs.some(
+                   (spec) => spec.includes(pos) || pos.includes(spec),
+                 );
+      })
+             : mailManagers;
 
-      //   const targetEmails = (
-      //     targetManagers.length > 0 ? targetManagers : mailManagers
-      //   ).map((m) => m.email);
+         const targetEmails = (
+      targetManagers.length > 0 ? targetManagers : mailManagers
+         ).map((m) => m.email);
 
-      //   this.socketGateway.notifyManagersAndSave(
-      //     notifyRooms,
-      //     "Yêu cầu đánh giá ứng viên mới",
-      //     `${candidate.fullName} đang chờ bạn phản hồi đánh giá`,
-      //     targetEmails,
-      //   );
-      //   this.logger.log(
-      //     `Sent socket notification to rooms=[${notifyRooms.join(
-      //       ", ",
-      //     )}] for application #${application.id} test online passed`,
-      //   );
-      // }
+      this.socketGateway.notifyManagersAndSave(
+           notifyRooms,
+           "Yêu cầu đánh giá ứng viên mới",
+           `${candidate.fullName} đang chờ bạn phản hồi đánh giá`,
+           targetEmails,
+      );
+         this.logger.log(
+           `Sent socket notification to rooms=[${notifyRooms.join(
+             ", ",
+           )}] for application #${application.id} test online passed`,
+         );
+       }
 
       await queryRunner.commitTransaction();
 
@@ -531,31 +537,31 @@ export class RecruitmentService {
         `Created new pipeline with status: ${updateStatusDto.status}`,
       );
 
-      // update status to do a statistic for role recruitment manager, only when status is FAIL
-      // if (updateStatusDto.status === RECRUITMENT_PIPELINE_CODES.FAIL) {
-      //   switch (latestApplication.status) {
-      //     case RECRUITMENT_PIPELINE_CODES.IQ_TEST:
-      //       await this.recruitmentManagerService.updateStatusCandidateReview(
-      //         latestApplication.id,
-      //         [RECRUITMENT_PIPELINE_CODES.DEPARTMENT_REVIEW],
-      //         [ReviewStatus.PENDING],
-      //         ReviewStatus.REJECT,
-      //       );
-      //       break;
+     // update status to do a statistic for role recruitment manager, only when status is FAIL
+      if (updateStatusDto.status === RECRUITMENT_PIPELINE_CODES.FAIL) {
+        switch (latestApplication.status) {
+          case RECRUITMENT_PIPELINE_CODES.IQ_TEST:
+            await this.recruitmentManagerService.updateStatusCandidateReview(
+              latestApplication.id,
+              [RECRUITMENT_PIPELINE_CODES.DEPARTMENT_REVIEW],
+              [ReviewStatus.PENDING],
+              ReviewStatus.REJECT,
+            );
+            break;
 
-      //     default:
-      //       await this.recruitmentManagerService.updateStatusCandidateReview(
-      //         latestApplication.id,
-      //         [
-      //           RECRUITMENT_PIPELINE_CODES.DEPARTMENT_REVIEW,
-      //           RECRUITMENT_PIPELINE_CODES.INTERVIEW_ROUND_1,
-      //         ],
-      //         [ReviewStatus.PENDING, ReviewStatus.APPROVE],
-      //         ReviewStatus.REJECT,
-      //       );
-      //       break;
-      //   }
-      // }
+          default:
+            await this.recruitmentManagerService.updateStatusCandidateReview(
+              latestApplication.id,
+              [
+                RECRUITMENT_PIPELINE_CODES.DEPARTMENT_REVIEW,
+                RECRUITMENT_PIPELINE_CODES.INTERVIEW_ROUND_1,
+              ],
+              [ReviewStatus.PENDING, ReviewStatus.APPROVE],
+              ReviewStatus.REJECT,
+            );
+            break;
+        }
+      }
 
       // 5. Update application status using queryRunner
       latestApplication.status = updateStatusDto.status;
@@ -583,85 +589,137 @@ export class RecruitmentService {
         candidateId,
       );
 
-      // 6. create a candidate manager review to do a statistic for role recruitment manager
-      const REVIEW_PIPELINES = new Set<string>([
-        RECRUITMENT_PIPELINE_CODES.INTERVIEW_ROUND_1,
-        RECRUITMENT_PIPELINE_CODES.ONBOARDING,
-      ]);
+  // 6. Create candidate manager review and notification for recruitment manager flow
+const REVIEW_PIPELINES = new Set<string>([
+  RECRUITMENT_PIPELINE_CODES.DEPARTMENT_REVIEW,
+  RECRUITMENT_PIPELINE_CODES.INTERVIEW_ROUND_1,
+  RECRUITMENT_PIPELINE_CODES.ONBOARDING,
+]);
 
-      // if (REVIEW_PIPELINES.has(updateStatusDto.status)) {
-      //   const departmentNames = (latestApplication.department ?? "")
-      //     .split(",")
-      //     .map((d) => d.trim())
-      //     .filter(Boolean);
+if (REVIEW_PIPELINES.has(updateStatusDto.status)) {
+  const departmentNames = (latestApplication.department ?? "")
+    .split(",")
+    .map((d) => d.trim())
+    .filter(Boolean);
 
-      //   const mailManagers =
-      //     await this.recruitmentManagerService.findMailManagersByDepartments(
-      //       departmentNames,
-      //     );
+  const mailManagers =
+    await this.recruitmentManagerService.findMailManagersByDepartments(
+      departmentNames,
+    );
 
-      //   if (!mailManagers || mailManagers.length === 0) {
-      //     throw new NotFoundException(
-      //       `Mail manager not found for departments: ${departmentNames.join(
-      //         ", ",
-      //       )}`,
-      //     );
-      //   }
+  if (!mailManagers || mailManagers.length === 0) {
+    throw new NotFoundException(
+      `Mail manager not found for departments: ${departmentNames.join(", ")}`,
+    );
+  }
 
-      //   switch (updateStatusDto.status) {
-      //     case RECRUITMENT_PIPELINE_CODES.INTERVIEW_ROUND_1:
-      //       await this.recruitmentManagerService.updateStatusCandidateReview(
-      //         latestApplication.id,
-      //         [RECRUITMENT_PIPELINE_CODES.DEPARTMENT_REVIEW],
-      //         [ReviewStatus.PENDING],
-      //         ReviewStatus.APPROVE,
-      //       );
-      //       break;
-      //     case RECRUITMENT_PIPELINE_CODES.ONBOARDING:
-      //       await this.recruitmentManagerService.updateStatusCandidateReview(
-      //         latestApplication.id,
-      //         [RECRUITMENT_PIPELINE_CODES.INTERVIEW_ROUND_1],
-      //         [ReviewStatus.PENDING],
-      //         ReviewStatus.APPROVE,
-      //       );
-      //       break;
-      //     default:
-      //       break;
-      //   }
+  switch (updateStatusDto.status) {
+    case RECRUITMENT_PIPELINE_CODES.DEPARTMENT_REVIEW:
+      break;
 
-      //   for (const manager of mailManagers) {
-      //     this.logger.log(
-      //       `Found mail manager ${
-      //         manager.email
-      //       } for department(s): ${departmentNames.join(", ")}`,
-      //     );
+    case RECRUITMENT_PIPELINE_CODES.INTERVIEW_ROUND_1:
+      await this.recruitmentManagerService.updateStatusCandidateReview(
+        latestApplication.id,
+        [RECRUITMENT_PIPELINE_CODES.DEPARTMENT_REVIEW],
+        [ReviewStatus.PENDING],
+        ReviewStatus.APPROVE,
+      );
+      break;
 
-      //     // Only create a new review for managers who have a prior non-rejected review
-      //     // (i.e. they are still active for this application)
-      //     const existingReview = await this.dataSource.query(
-      //       `SELECT id FROM rocket_recruitment_candidate_manager_review
-      //        WHERE application_id = ? AND reviewer_id = ? AND status != ?
-      //        LIMIT 1`,
-      //       [latestApplication.id, manager.id, ReviewStatus.REJECT],
-      //     );
+    case RECRUITMENT_PIPELINE_CODES.ONBOARDING:
+      await this.recruitmentManagerService.updateStatusCandidateReview(
+        latestApplication.id,
+        [RECRUITMENT_PIPELINE_CODES.INTERVIEW_ROUND_1],
+        [ReviewStatus.PENDING],
+        ReviewStatus.APPROVE,
+      );
+      break;
 
-      //     if (!existingReview || existingReview.length === 0) {
-      //       this.logger.log(
-      //         `Skipping createCandidateReview for manager ${manager.email} — no active (non-rejected) review found`,
-      //       );
-      //       continue;
-      //     }
+    default:
+      break;
+  }
 
-      //     await this.recruitmentManagerService.createCandidateReview(
-      //       {
-      //         application_id: latestApplication.id,
-      //         pipeline_code: updateStatusDto.status,
-      //         status: ReviewStatus.PENDING,
-      //       },
-      //       manager.email,
-      //     );
-      //   }
-      // }
+  const orderRows: { position: string }[] = await this.dataSource.query(
+    `SELECT position FROM recruitment_orders WHERE id = ? LIMIT 1`,
+    [latestApplication.position],
+  );
+
+  const orderPosition = orderRows?.[0]?.position?.trim() || "";
+
+  const targetManagers =
+    updateStatusDto.status === RECRUITMENT_PIPELINE_CODES.DEPARTMENT_REVIEW &&
+    orderPosition &&
+    mailManagers.some((m) => m.specialization)
+      ? mailManagers.filter((m) => {
+          if (!m.specialization) return true;
+
+          const specs = m.specialization
+            .split(",")
+            .map((s) => s.trim().toLowerCase());
+
+          const pos = orderPosition.toLowerCase();
+
+          return specs.some(
+            (spec) => spec.includes(pos) || pos.includes(spec),
+          );
+        })
+      : mailManagers;
+
+  const createdReviewEmails: string[] = [];
+
+  for (const manager of targetManagers.length > 0 ? targetManagers : mailManagers) {
+    this.logger.log(
+      `Found mail manager ${manager.email} for department(s): ${departmentNames.join(
+        ", ",
+      )}`,
+    );
+
+    if (updateStatusDto.status !== RECRUITMENT_PIPELINE_CODES.DEPARTMENT_REVIEW) {
+      const existingReview = await this.dataSource.query(
+        `SELECT id FROM recruitment_candidate_manager_review
+         WHERE application_id = ? AND reviewer_id = ? AND status != ?
+         LIMIT 1`,
+        [latestApplication.id, manager.id, ReviewStatus.REJECT],
+      );
+
+      if (!existingReview || existingReview.length === 0) {
+        this.logger.log(
+          `Skipping createCandidateReview for manager ${manager.email} - no active review found`,
+        );
+        continue;
+      }
+    }
+
+    await this.recruitmentManagerService.createCandidateReview(
+      {
+        application_id: latestApplication.id,
+        pipeline_code: updateStatusDto.status,
+        status: ReviewStatus.PENDING,
+      },
+      manager.email,
+    );
+
+    createdReviewEmails.push(manager.email);
+  }
+
+  if (
+    updateStatusDto.status === RECRUITMENT_PIPELINE_CODES.DEPARTMENT_REVIEW &&
+    createdReviewEmails.length > 0
+  ) {
+    const notifyRooms = orderPosition
+      ? departmentNames.map((dept) =>
+          SocketGateway.buildManagerRoom(dept, orderPosition),
+        )
+      : [`recruitment_${RoleType.RECRUITMENT_MANAGER}`];
+
+  await this.socketGateway.notifyManagersAndSave(
+  notifyRooms,
+  "Yêu cầu đánh giá ứng viên mới",
+  `${result.fullName} đang chờ bộ phận chuyên môn đánh giá`,
+  createdReviewEmails,
+);
+  }
+}
 
       return res.status(200).json(result);
     } catch (error) {
@@ -907,9 +965,9 @@ const attachments = files
       const pipelines = await this.pipelineService.findAll();
 
       // Build query for applications using string table name
-      // Join table rocket_recruitment_candidate_manager_review to get review status and review note
+      // Join table recruitment_candidate_manager_review to get review status and review note
       let queryBuilder = this.dataSource
-        .getRepository("recruitment_applications")
+        .getRepository("applications")
         .createQueryBuilder("app")
         .innerJoinAndSelect("app.candidate", "candidate")
         .leftJoinAndSelect("app.managerReviews", "review")
@@ -1055,7 +1113,7 @@ const attachments = files
       const pipelines = await this.pipelineService.findAll();
 
       let queryBuilder = this.dataSource
-        .getRepository("recruitment_applications")
+        .getRepository("applications")
         .createQueryBuilder("app")
         .innerJoin("app.candidate", "candidate")
         .leftJoinAndMapOne(
@@ -1144,7 +1202,7 @@ const attachments = files
       const paginate = new PageRequest(page, size, `${active},${direction}`);
 
       let queryBuilder = this.dataSource
-        .getRepository("recruitment_applications")
+        .getRepository("applications")
         .createQueryBuilder("app")
         .innerJoinAndSelect("app.candidate", "candidate")
         .leftJoinAndSelect("app.managerReviews", "review")
@@ -1278,7 +1336,7 @@ const attachments = files
   }> {
     try {
       // Use raw query for better performance with GROUP BY
-      // Join with rocket_recruitment_order to get position name
+      // Join with recruitment_order to get position name
       // Group by position name to eliminate duplicates
       const result = await this.dataSource.query(`
         SELECT 
@@ -1288,8 +1346,8 @@ const attachments = files
           END) AS orderId,
           COALESCE(o.position, app.position) AS position,
           COUNT(*) as count
-        FROM recruitment_applications app
-        LEFT JOIN recruitment_order o ON app.position = CAST(o.id AS CHAR)
+        FROM applications app
+        LEFT JOIN order o ON app.position = CAST(o.id AS CHAR)
         WHERE app.deleted_at IS NULL
           AND app.position IS NOT NULL
           AND app.position != ''
@@ -1378,7 +1436,7 @@ const attachments = files
 
       // Get all applications for this candidate with order position
       const applications = await this.dataSource
-        .getRepository("recruitment_applications")
+        .getRepository("applications")
         .createQueryBuilder("app")
         .leftJoinAndMapOne(
           "app.orderInfo",
