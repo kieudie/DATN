@@ -492,7 +492,7 @@ const queryBuilder = this.dataSource
 .innerJoin(
   "candidate_pipeline",
   "pipeline",
-  "pipeline.application_id = app.id AND pipeline.candidate_id = app.candidate_id AND pipeline.end_time IS NULL AND pipeline.recruitment_pipeline_code = :departmentReviewCode",
+  "pipeline.application_id = app.id AND pipeline.candidate_id = app.candidate_id AND pipeline.end_time IS NULL",
 )
         // Left join order table to get position name (app.position = order.id)
         .leftJoin(
@@ -501,11 +501,20 @@ const queryBuilder = this.dataSource
           "ord.id = CAST(app.position AS UNSIGNED)",
         )
         .addSelect("ord.position", "orderPositionName")
-        .where(`(${departmentConditions})`, departmentParams);
-queryBuilder.setParameter(
-  "departmentReviewCode",
-  RECRUITMENT_PIPELINE_CODES.DEPARTMENT_REVIEW,
-);
+        .where(`(${departmentConditions})`, departmentParams)
+.andWhere("app.status IN (:...managerVisibleStatuses)", {
+  managerVisibleStatuses: [
+    RECRUITMENT_PIPELINE_CODES.DEPARTMENT_REVIEW,
+    RECRUITMENT_PIPELINE_CODES.INTERVIEW_ROUND_1,
+    RECRUITMENT_PIPELINE_CODES.INTERVIEW_ROUND_2,
+    RECRUITMENT_PIPELINE_CODES.ONBOARDING,
+    RECRUITMENT_PIPELINE_CODES.FAIL,
+  ],
+});
+//queryBuilder.setParameter(
+  //"departmentReviewCode",
+  //RECRUITMENT_PIPELINE_CODES.DEPARTMENT_REVIEW,
+//);
       // Filter by matching order IDs (specialization filter)
     //  if (matchingOrderIds.length > 0) {
       //  queryBuilder.andWhere(
@@ -686,6 +695,24 @@ const candidateData = {
      // }
      // Nếu chưa có review nào thì đưa vào danh sách cần đánh giá
 if (!reviewRecords || reviewRecords.length === 0) {
+  if (
+    candidateData.status === RECRUITMENT_PIPELINE_CODES.INTERVIEW_ROUND_1 ||
+    candidateData.status === RECRUITMENT_PIPELINE_CODES.INTERVIEW_ROUND_2
+  ) {
+    groupedByResult.waitingInterview.push(candidateData);
+    continue;
+  }
+
+  if (candidateData.status === RECRUITMENT_PIPELINE_CODES.ONBOARDING) {
+    groupedByResult.hired.push(candidateData);
+    continue;
+  }
+
+  if (candidateData.status === RECRUITMENT_PIPELINE_CODES.FAIL) {
+    groupedByResult.rejected.push(candidateData);
+    continue;
+  }
+
   groupedByResult.needReview.push(candidateData);
   continue;
 }

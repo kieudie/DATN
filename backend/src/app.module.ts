@@ -13,6 +13,7 @@ import { RolesModule } from './main/roles/roles.module';
 import { UsersModule } from './main/users/users.module';
 
 import { NotificationModule } from "./main/notification/notification.module";
+import { RecruitmentCalendarModule } from "./main/recruitment-calendar/recruitment-calendar.module";
 import { RecruitmentModule } from './main/recruitment-candidate/recruitment.module';
 import { RecruitmentManagerModule } from './main/recruitment-manager/recruitment-manager.module';
 import { RecruitmentOrderModule } from './main/recruitment-order/recruitment-order.module';
@@ -36,6 +37,7 @@ import { ormConfig } from './typeorm/orm.config';
     RecruitmentManagerModule,
     SocketModule,
     NotificationModule,
+    RecruitmentCalendarModule,
   ],
 })
 export class AppModule {}

@@ -354,7 +354,7 @@ export class RecruitmentService {
 
       // Look up the order's position name (used as specialization for room targeting)
        const orderRows: { position: string }[] = await this.dataSource.query(
-         `SELECT position FROM recruitment_order WHERE id = ? LIMIT 1`,
+         `SELECT position FROM recruitment_orders WHERE id = ? LIMIT 1`,
           [application.position],
         );
       const orderPosition = orderRows?.[0]?.position?.trim() || "";
@@ -1347,7 +1347,7 @@ const attachments = files
           COALESCE(o.position, app.position) AS position,
           COUNT(*) as count
         FROM applications app
-        LEFT JOIN order o ON app.position = CAST(o.id AS CHAR)
+        LEFT JOIN recruitment_orders o ON app.position = CAST(o.id AS CHAR)
         WHERE app.deleted_at IS NULL
           AND app.position IS NOT NULL
           AND app.position != ''

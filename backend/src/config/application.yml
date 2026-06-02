@@ -40,3 +40,15 @@ redis:
   db: "${REDIS_DB}"
   cache-key-name: "${REDIS_CACHE_KEY_NAME}"
   url: "${REDIS_URL}"
+google-sheet:
+  recruitment-calendar:
+    client-id: "${GOOGLE_CALENDAR_CLIENT_ID}"
+    client-secret: "${GOOGLE_CALENDAR_CLIENT_SECRET}"
+    refresh-token: "${GOOGLE_CALENDAR_REFRESH_TOKEN}"
+mail-recruitment:
+  enabled: "${MAIL_RECRUITMENT_ENABLED}"
+  host: "${MAIL_RECRUITMENT_HOST}"
+  port: "${MAIL_RECRUITMENT_PORT}"
+  user: "${MAIL_RECRUITMENT_USER}"
+  password: "${MAIL_RECRUITMENT_PASSWORD}"
+  from: "${MAIL_RECRUITMENT_FROM}"
