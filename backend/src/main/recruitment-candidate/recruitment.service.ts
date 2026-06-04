@@ -981,9 +981,9 @@ const attachments = files
         )
         .leftJoinAndMapOne(
           "app.creatorInfo",
-          "personnel",
+          "users",
           "creator",
-          "app.created_by = creator.personnel_code",
+          "app.created_by = creator.id",
         )
         .where("app.deletedAt IS NULL")
         .andWhere("candidate.deletedAt IS NULL");
@@ -1020,8 +1020,8 @@ const attachments = files
       // Apply pic filter by creatorInfo personnelName
       if (pic) {
         queryBuilder = queryBuilder.andWhere(
-          "creator.personnelName LIKE :pic",
-          { pic: `%${pic}%` },
+        "(creator.full_name LIKE :pic OR creator.email LIKE :pic OR creator.personnel_code LIKE :pic OR creator.personnel_name LIKE :pic)",     
+            { pic: `%${pic}%` },
         );
       }
 
@@ -1063,7 +1063,11 @@ const attachments = files
             testOnlineStatus: app.testOnlineStatus,
             createdAt: app.createdAt,
             updatedAt: app.updatedAt,
-            createdBy: (app as any).creatorInfo?.personnelName ?? null,
+           createdBy:
+  (app as any).creatorInfo?.personnelName ??
+  (app as any).creatorInfo?.fullName ??
+  (app as any).creatorInfo?.email ??
+  null,
             cvs:
               app.cvs?.map((cv) => ({
                 id: cv.id,
@@ -1124,7 +1128,7 @@ const attachments = files
         )
         .leftJoinAndMapOne(
           "app.creatorInfo",
-          "personnel",
+          "users",
           "creator",
           "app.created_by = creator.personnel_code",
         )
@@ -1159,7 +1163,7 @@ const attachments = files
 
       if (pic) {
         queryBuilder = queryBuilder.andWhere(
-          "creator.personnelName LIKE :pic",
+          "(creator.full_name LIKE :pic OR creator.email LIKE :pic OR creator.personnel_code LIKE :pic OR creator.personnel_name LIKE :pic)",
           { pic: `%${pic}%` },
         );
       }
@@ -1216,7 +1220,7 @@ const attachments = files
         )
         .leftJoinAndMapOne(
           "app.creatorInfo",
-          "personnel",
+          "users",
           "creator",
           "app.created_by = creator.personnel_code",
         )
@@ -1257,7 +1261,7 @@ const attachments = files
 
       if (pic) {
         queryBuilder = queryBuilder.andWhere(
-          "creator.personnelName LIKE :pic",
+          "(creator.full_name LIKE :pic OR creator.email LIKE :pic OR creator.personnel_code LIKE :pic OR creator.personnel_name LIKE :pic)",
           { pic: `%${pic}%` },
         );
       }
@@ -1293,7 +1297,7 @@ const attachments = files
         status: app.status,
         createdAt: app.createdAt,
         updatedAt: app.updatedAt,
-        createdBy: (app as any).creatorInfo?.personnelName ?? null,
+        createdBy: (app as any).creatorInfo?.full_name ?? null,
         cvs:
           app.cvs?.map((cv) => ({
             id: cv.id,

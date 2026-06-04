@@ -17,6 +17,7 @@ import { RecruitmentCalendarModule } from "./main/recruitment-calendar/recruitme
 import { RecruitmentModule } from './main/recruitment-candidate/recruitment.module';
 import { RecruitmentManagerModule } from './main/recruitment-manager/recruitment-manager.module';
 import { RecruitmentOrderModule } from './main/recruitment-order/recruitment-order.module';
+import { RecruitmentReportModule } from './main/recruitment-report/recruitment-report.module';
 import { SocketModule } from "./main/socket/socket.module";
 import { ormConfig } from './typeorm/orm.config';
 @Module({
@@ -38,6 +39,7 @@ import { ormConfig } from './typeorm/orm.config';
     SocketModule,
     NotificationModule,
     RecruitmentCalendarModule,
+    RecruitmentReportModule,
   ],
 })
 export class AppModule {}
