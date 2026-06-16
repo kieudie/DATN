@@ -2,6 +2,7 @@ import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { message } from 'antd';
 
+// ─── Không chỉnh sửa logic bên dưới ─────────────────────────────────────────
 const Login = () => {
     const navigate = useNavigate();
     const [email, setEmail] = useState('');
@@ -9,151 +10,169 @@ const Login = () => {
     const [showPassword, setShowPassword] = useState(false);
     const [isLoading, setIsLoading] = useState(false);
 
-    const togglePass = () => {
-        setShowPassword(!showPassword);
-    };
+    const togglePass = () => setShowPassword(!showPassword);
 
     const handleLogin = async (e) => {
         e.preventDefault();
         setIsLoading(true);
-
         try {
-            const response = await fetch('http://localhost:8086/api/auth/login', {
+            const response = await fetch('http://localhost:3000/api/auth/login', {
                 method: 'POST',
-                headers: {
-                    'accept': 'application/json',
-                    'Content-Type': 'application/json',
-                },
-                body: JSON.stringify({ email, password })
+                headers: { 'accept': 'application/json', 'Content-Type': 'application/json' },
+                body: JSON.stringify({ email, password }),
             });
-
             if (response.ok) {
                 const data = await response.json();
-                console.log('Login successful:', data);
                 localStorage.setItem('access_token', data.access_token);
                 localStorage.setItem('full_name', data.full_name);
                 message.success('Đăng nhập thành công! Đang chuyển hướng...');
-                setTimeout(() => {
-                    navigate('/home');
-                }, 1000);
+                setTimeout(() => navigate('/home'), 1000);
             } else {
                 message.error('Email hoặc mật khẩu không đúng.');
             }
-        } catch (error) {
-            message.error('Không thể kết nối đến máy chủ. Vui lòng kiểm tra lại backend (CORS hoặc server đang down).');
+        } catch {
+            message.error('Không thể kết nối đến máy chủ. Vui lòng kiểm tra backend.');
         } finally {
             setIsLoading(false);
         }
     };
+    // ─── Kết thúc vùng logic ─────────────────────────────────────────────────
 
     return (
-        <div className="min-h-screen flex items-center justify-center p-4 sm:p-6 bg-[#f8fafc]">
-            <div className="max-w-4xl w-full bg-white rounded-3xl shadow-2xl overflow-hidden flex flex-col md:flex-row min-h-[550px]">
+        /* Full-screen background: gradient xanh nhạt → tím nhạt */
+        <div
+            className="min-h-screen flex items-center justify-center p-4"
+            style={{
+                background: 'linear-gradient(135deg, #EFF6FF 0%, #F5F3FF 50%, #EEF2FF 100%)',
+            }}
+        >
+            {/* Card trung tâm */}
+            <div
+                className="w-full bg-white rounded-3xl animate-fadeInUp"
+                style={{
+                    maxWidth: 480,
+                    boxShadow: '0 8px 40px 0 rgba(99, 102, 241, 0.10), 0 2px 8px 0 rgba(0,0,0,0.06)',
+                }}
+            >
+                <div className="p-8 sm:p-10">
 
-                {/* Left Panel */}
-                <div className="hidden md:flex md:w-5/12 bg-brand-600 p-10 flex-col justify-between text-white relative">
-                    <div className="relative z-10">
-                        <div className="flex items-center gap-2 mb-12">
-                            <div className="w-9 h-9 bg-white rounded-xl flex items-center justify-center text-brand-600">
-                                <i className="fa-solid fa-bolt-lightning text-lg"></i>
-                            </div>
-                            <span className="text-xl font-bold tracking-tight">TalentHub</span>
-                        </div>
-
-                        <div className="space-y-6">
-                            <h2 className="text-3xl font-bold leading-tight">Tuyển dụng<br />thông minh hơn.</h2>
-
-                            <div className="space-y-4 pt-4">
-                                <div className="flex items-center gap-3 opacity-90 feature-card">
-                                    <div className="w-8 h-8 rounded-lg bg-white/10 flex items-center justify-center text-sm">
-                                        <i className="fa-solid fa-user-plus"></i>
-                                    </div>
-                                    <span className="text-sm font-medium">Hồ sơ ứng viên</span>
-                                </div>
-                                <div className="flex items-center gap-3 opacity-90 feature-card">
-                                    <div className="w-8 h-8 rounded-lg bg-white/10 flex items-center justify-center text-sm">
-                                        <i className="fa-solid fa-diagram-project"></i>
-                                    </div>
-                                    <span className="text-sm font-medium">Pipeline trực quan</span>
-                                </div>
-                                <div className="flex items-center gap-3 opacity-90 feature-card">
-                                    <div className="w-8 h-8 rounded-lg bg-white/10 flex items-center justify-center text-sm">
-                                        <i className="fa-solid fa-chart-pie"></i>
-                                    </div>
-                                    <span className="text-sm font-medium">Báo cáo tự động</span>
-                                </div>
-                            </div>
+                    {/* ── Brand icon ── */}
+                    <div className="flex justify-center mb-7">
+                        <div
+                            className="w-14 h-14 rounded-2xl flex items-center justify-center"
+                            style={{
+                                background: 'linear-gradient(135deg, #2563EB 0%, #7C3AED 100%)',
+                                boxShadow: '0 4px 16px rgba(99,102,241,0.30)',
+                            }}
+                        >
+                            <i className="fa-solid fa-briefcase text-white text-xl"></i>
                         </div>
                     </div>
 
-                    <div className="absolute top-0 right-0 -mr-16 -mt-16 w-64 h-64 bg-white/10 rounded-full blur-3xl"></div>
-                </div>
+                    {/* ── Heading ── */}
+                    <div className="text-center mb-8">
+                        <h1 className="text-xl font-bold text-slate-900 mb-1.5">
+                            Đăng nhập hệ thống
+                        </h1>
+                        <p className="text-sm text-slate-500">
+                            Vui lòng nhập thông tin tài khoản của bạn
+                        </p>
+                    </div>
 
-                {/* Right Panel */}
-                <div className="w-full md:w-7/12 p-8 sm:p-12 flex flex-col justify-center">
-                    <div className="max-w-sm w-full mx-auto">
-                        <div className="md:hidden flex items-center gap-2 mb-8">
-                            <div className="w-8 h-8 bg-brand-600 rounded-lg flex items-center justify-center text-white">
-                                <i className="fa-solid fa-bolt-lightning text-sm"></i>
+                    {/* ── Form ── */}
+                    <form onSubmit={handleLogin} className="space-y-4">
+
+                        {/* Email */}
+                        <div>
+                            <label className="block text-xs font-semibold text-slate-500 uppercase tracking-wider mb-1.5">
+                                EMAIL CÁ NHÂN
+                            </label>
+                            <div className="relative">
+                                <span className="absolute inset-y-0 left-0 pl-3.5 flex items-center pointer-events-none">
+                                    <i className="fa-regular fa-envelope text-slate-400 text-sm"></i>
+                                </span>
+                                <input
+                                    type="email"
+                                    required
+                                    value={email}
+                                    onChange={(e) => setEmail(e.target.value)}
+                                    placeholder="name@company.com"
+                                    className="input-field w-full pl-10 pr-4 py-2.5 rounded-xl text-sm text-slate-900 placeholder:text-slate-300 border border-slate-200 focus:bg-white"
+                                    style={{ background: '#F8FAFC' }}
+                                />
                             </div>
-                            <span className="text-lg font-bold text-gray-900">TalentHub</span>
                         </div>
 
-                        <h1 className="text-2xl font-bold text-gray-900 mb-2">Đăng nhập</h1>
-                        <p className="text-gray-500 text-sm mb-8">Chào mừng HR quay trở lại hệ thống.</p>
-
-
-
-                        <form className="space-y-5" onSubmit={handleLogin}>
-                            {/* Email Input */}
-                            <div>
-                                <label className="block text-xs font-semibold text-gray-500 uppercase tracking-wider mb-2">Email Công việc</label>
-                                <div className="relative group">
-                                    <div className="absolute inset-y-0 left-0 pl-4 flex items-center pointer-events-none text-gray-400 group-focus-within:text-brand-600">
-                                        <i className="fa-regular fa-envelope"></i>
-                                    </div>
-                                    <input
-                                        type="email"
-                                        required
-                                        value={email}
-                                        onChange={(e) => setEmail(e.target.value)}
-                                        className="block w-full pl-11 pr-4 py-3 bg-gray-50 border border-gray-200 rounded-xl focus:ring-2 focus:ring-brand-600 focus:border-transparent outline-none transition-all text-sm"
-                                        placeholder="name@company.com"
-                                    />
-                                </div>
+                        {/* Password */}
+                        <div>
+                            <div className="flex items-center justify-between mb-1.5">
+                                <label className="block text-xs font-semibold text-slate-500 uppercase tracking-wider">
+                                    MẬT KHẨU
+                                </label>
+                                <a
+                                    href="#"
+                                    className="text-xs font-medium hover:underline"
+                                    style={{ color: '#2563EB' }}
+                                >
+                                    Quên mật khẩu?
+                                </a>
                             </div>
-
-                            {/* Password Input */}
-                            <div>
-                                <div className="flex justify-between mb-2">
-                                    <label className="block text-xs font-semibold text-gray-500 uppercase tracking-wider">Mật khẩu</label>
-                                    <a href="#" className="text-xs font-bold text-brand-600 hover:underline">Quên?</a>
-                                </div>
-                                <div className="relative group">
-                                    <div className="absolute inset-y-0 left-0 pl-4 flex items-center pointer-events-none text-gray-400 group-focus-within:text-brand-600">
-                                        <i className="fa-solid fa-lock"></i>
-                                    </div>
-                                    <input
-                                        type={showPassword ? 'text' : 'password'}
-                                        required
-                                        value={password}
-                                        onChange={(e) => setPassword(e.target.value)}
-                                        className="block w-full pl-11 pr-12 py-3 bg-gray-50 border border-gray-200 rounded-xl focus:ring-2 focus:ring-brand-600 focus:border-transparent outline-none transition-all text-sm"
-                                        placeholder="••••••••"
-                                    />
-                                    <button type="button" onClick={togglePass} className="absolute inset-y-0 right-0 pr-4 flex items-center text-gray-400 hover:text-gray-600">
-                                        <i className={`fa-regular ${showPassword ? 'fa-eye-slash' : 'fa-eye'}`}></i>
-                                    </button>
-                                </div>
+                            <div className="relative">
+                                <span className="absolute inset-y-0 left-0 pl-3.5 flex items-center pointer-events-none">
+                                    <i className="fa-solid fa-lock text-slate-400 text-sm"></i>
+                                </span>
+                                <input
+                                    type={showPassword ? 'text' : 'password'}
+                                    required
+                                    value={password}
+                                    onChange={(e) => setPassword(e.target.value)}
+                                    placeholder="••••••••"
+                                    className="input-field w-full pl-10 pr-11 py-2.5 rounded-xl text-sm text-slate-900 placeholder:text-slate-300 border border-slate-200 focus:bg-white"
+                                    style={{ background: '#F8FAFC' }}
+                                />
+                                <button
+                                    type="button"
+                                    onClick={togglePass}
+                                    tabIndex={-1}
+                                    className="absolute inset-y-0 right-0 pr-3.5 flex items-center text-slate-400 hover:text-slate-600 transition-colors"
+                                >
+                                    <i className={`fa-regular ${showPassword ? 'fa-eye-slash' : 'fa-eye'} text-sm`}></i>
+                                </button>
                             </div>
+                        </div>
 
-                            <button type="submit" disabled={isLoading}
-                                className="w-full bg-brand-600 hover:bg-brand-700 text-white font-bold py-3 px-4 rounded-xl shadow-lg shadow-brand-600/20 transition-all flex items-center justify-center gap-2 relative disabled:opacity-70 disabled:cursor-not-allowed">
-                                <span className={isLoading ? 'opacity-0' : ''}>Truy cập hệ thống</span>
-                                {isLoading && <i className="fa-solid fa-circle-notch animate-spin absolute"></i>}
-                            </button>
-                        </form>
-                    </div>
+                        {/* Submit button */}
+                        <button
+                            type="submit"
+                            disabled={isLoading}
+                            className="w-full py-2.5 px-4 rounded-xl text-white text-sm font-semibold flex items-center justify-center gap-2 mt-2 transition-opacity"
+                            style={{
+                                background: isLoading
+                                    ? 'linear-gradient(135deg, #93C5FD 0%, #C4B5FD 100%)'
+                                    : 'linear-gradient(135deg, #2563EB 0%, #7C3AED 100%)',
+                                boxShadow: isLoading ? 'none' : '0 4px 14px rgba(99,102,241,0.35)',
+                                cursor: isLoading ? 'not-allowed' : 'pointer',
+                                opacity: isLoading ? 0.8 : 1,
+                            }}
+                        >
+                            {isLoading ? (
+                                <>
+                                    <i className="fa-solid fa-circle-notch animate-spin text-sm"></i>
+                                    <span>Đang đăng nhập...</span>
+                                </>
+                            ) : (
+                                <>
+                                    <span>Đăng nhập</span>
+                                    <i className="fa-solid fa-arrow-right text-sm"></i>
+                                </>
+                            )}
+                        </button>
+                    </form>
+
+                    {/* Footer note */}
+                    <p className="mt-6 text-center text-xs text-slate-400">
+                        Hệ thống quản lý tuyển dụng &mdash; Chào mừng bạn
+                    </p>
                 </div>
             </div>
         </div>
@@ -161,3 +180,4 @@ const Login = () => {
 };
 
 export default Login;
+

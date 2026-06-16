@@ -1,9 +1,33 @@
-import React, { useEffect, useState, useRef, useMemo } from 'react';
-import { message, Tabs, DatePicker, Select, Tag, Button, Space } from 'antd';
+import { DatePicker, message, Select, Tag } from 'antd';
 import dayjs from 'dayjs';
-import { debounce } from 'lodash';
+import { useEffect, useMemo, useState, useRef } from 'react';
+import { useSearchParams } from 'react-router-dom';
 
 const { RangePicker } = DatePicker;
+
+const PIPELINE_LABELS = {
+  received_cv: "Tiếp nhận hồ sơ",
+  hr_scan: "HR lọc hồ sơ",
+  iq_test: "Test IQ Online",
+  technical_test: "Test offline/Chuyên môn",
+  department_review: "Bộ phận chọn hồ sơ",
+  interview_round_1: "Phỏng vấn vòng 1",
+  interview_round_2: "Phỏng vấn vòng 2",
+  offer: "Offer",
+  onboarding: "Onboarding",
+  fail: "Không phù hợp",
+};
+
+const RESULT_LABELS = {
+  pending: "Đang xử lý",
+  pass: "Đạt",
+  fail: "Không đạt",
+};
+
+const formatDateTime = (value) => {
+  if (!value) return "--";
+  return new Date(value).toLocaleString("vi-VN");
+};
 
 const Candidates = ({ menus, user }) => {
     const [candidates, setCandidates] = useState([]);
@@ -16,6 +40,13 @@ const Candidates = ({ menus, user }) => {
     const [isEditing, setIsEditing] = useState(false);
     const [editingIds, setEditingIds] = useState({ candidateId: null, applicationId: null });
     const [previewCV, setPreviewCV] = useState(null);
+    const [syncingSheet, setSyncingSheet] = useState(false);
+    const [lastSyncedAt, setLastSyncedAt] = useState(null);
+    /* ── Client-side pagination ── */
+    const [uiPage, setUiPage] = useState(1);
+    const [uiPageSize, setUiPageSize] = useState(10);
+
+    const [searchParams, setSearchParams] = useSearchParams();
 
     const [filters, setFilters] = useState({
         positions: [],
@@ -28,12 +59,20 @@ const Candidates = ({ menus, user }) => {
         schools: [],
         startDate: null,
         endDate: null,
-        search: ''
+        search: searchParams.get('search') || '',
+        candidateId: searchParams.get('candidateId') || null
     });
 
     const displayActiveFilters = useMemo(() => {
         const list = [];
-        if (filters.positions?.length) list.push({ key: 'positions', label: 'Vị trí', value: filters.positions.join(', ') });
+        if (filters.positions?.length) {
+            const positionLabels = filters.positions.map(positionId => {
+                const position = positions.find(item => String(item.id) === String(positionId) || String(item.orderId) === String(positionId) || String(item.recruitmentOrderId) === String(positionId));
+                if (!position) return positionId;
+                return position.team ? `${position.position} - ${position.team}` : position.position;
+            });
+            list.push({ key: 'positions', label: 'Vị trí', value: positionLabels.join(', ') });
+        }
         if (filters.levels?.length) list.push({ key: 'levels', label: 'Level', value: filters.levels.join(', ') });
         if (filters.sources?.length) list.push({ key: 'sources', label: 'Nguồn', value: filters.sources.join(', ') });
         if (filters.schools?.length) list.push({ key: 'schools', label: 'Trường', value: filters.schools.join(', ') });
@@ -50,8 +89,9 @@ const Candidates = ({ menus, user }) => {
         }
         if (filters.genders?.length) list.push({ key: 'genders', label: 'Giới tính', value: filters.genders.map(g => g === 'male' ? 'Nam' : 'Nữ').join(', ') });
         if (filters.startDate && filters.endDate) list.push({ key: 'date', label: 'Ngày apply', value: `${filters.startDate} - ${filters.endDate}` });
+        if (filters.candidateId) list.push({ key: 'candidateId', label: 'ID Ứng viên', value: filters.candidateId });
         return list;
-    }, [filters]);
+    }, [filters, positions, pipelineStages]);
 
     const [quickCreateForm, setQuickCreateForm] = useState({
         fullName: '',
@@ -72,7 +112,10 @@ const Candidates = ({ menus, user }) => {
         gpa: '',
         iqTest: '',
         techTest: '',
-        thinkingTest: ''
+        thinkingTest: '',
+        testOnlineStatus: '',
+        pipelineHistory: [],
+        managerReview: null
     });
 
     const filterOptions = {
@@ -118,16 +161,42 @@ const Candidates = ({ menus, user }) => {
         fetchPipelineStages();
         fetchPositions();
     }, []);
+const parseCandidateList = (result) => {
+        if (Array.isArray(result)) return result;
+        if (Array.isArray(result?.data)) return result.data;
+        if (Array.isArray(result?.data?.data)) return result.data.data;
+        if (Array.isArray(result?.data?.items)) return result.data.items;
+        if (Array.isArray(result?.data?.candidates)) return result.data.candidates;
+        if (Array.isArray(result?.items)) return result.items;
+        if (Array.isArray(result?.result)) return result.result;
+        if (Array.isArray(result?.candidates)) return result.candidates;
+        return [];
+    };
 
-    const fetchCandidates = async (currentFilters = filters) => {
-        setLoading(true);
-        const token = localStorage.getItem('access_token');
+    const getResponseTotal = (result, fallback = 0) => {
+        return (
+            result?.totalItems ||
+            result?.total ||
+            result?.count ||
+            result?.data?.totalItems ||
+            result?.data?.total ||
+            result?.data?.count ||
+            result?.meta?.totalItems ||
+            result?.meta?.total ||
+            result?.data?.meta?.totalItems ||
+            result?.data?.meta?.total ||
+            fallback
+        );
+    };
+
+    const buildCandidateQuery = (currentFilters = filters) => {
         const queryParams = new URLSearchParams();
-        
+
         if (currentFilters.positions?.length) queryParams.append('position', currentFilters.positions.join(','));
-        
+
         const pCodes = currentFilters.pipelines?.map(p => p.code).filter(Boolean);
         const pResults = currentFilters.pipelines?.flatMap(p => p.results).filter(Boolean);
+
         if (pCodes?.length) queryParams.append('pipelineCode', pCodes.join(','));
         if (pResults?.length) queryParams.append('pipelineResult', pResults.join(','));
 
@@ -141,29 +210,111 @@ const Candidates = ({ menus, user }) => {
         if (currentFilters.endDate) queryParams.append('endDate', currentFilters.endDate);
         if (currentFilters.search) queryParams.append('fullName', currentFilters.search);
 
-        try {
-            const response = await fetch(`http://localhost:8086/api/recruitment/candidates?${queryParams.toString()}`, {
-                headers: {
-                    'Authorization': `Bearer ${token}`,
-                    'Accept': 'application/json'
-                }
-            });
-            if (response.ok) {
-                const result = await response.json();
-                setCandidates(result.data || []);
-                setTotalItems(result.totalItems || 0);
+        return queryParams;
+    };
+
+    const mergeCandidatesById = (list) => {
+        const uniqueMap = new Map();
+
+        list.forEach((candidate) => {
+            const key = candidate?.id ?? candidate?.candidateId ?? candidate?.email ?? candidate?.phone;
+            if (key !== undefined && key !== null && String(key) !== '') {
+                uniqueMap.set(String(key), candidate);
             }
+        });
+
+        return Array.from(uniqueMap.values());
+    };
+
+    const fetchCandidates = async (currentFilters = filters) => {
+        setLoading(true);
+        setUiPage(1);
+
+        const token   = localStorage.getItem('access_token');
+        const baseUrl = 'http://localhost:3000/api/recruitment/candidates';
+
+        /* ── Backend đọc page/size từ HTTP HEADER (BaseHeaderDTO), không phải query param ── */
+        const makeHeaders = (page, size) => ({
+            Authorization: `Bearer ${token}`,
+            Accept: 'application/json',
+            page: String(page),
+            size: String(size),
+        });
+
+        try {
+            /* ── Page 1: lấy tổng số ── */
+            const q1 = buildCandidateQuery(currentFilters);
+            const r1 = await fetch(`${baseUrl}?${q1}`, { headers: makeHeaders(1, 12) });
+
+            if (r1.status === 401) {
+                localStorage.removeItem('access_token');
+                message.error('Phiên đăng nhập đã hết hạn. Vui lòng đăng nhập lại.');
+                window.location.href = '/login';
+                return;
+            }
+            if (!r1.ok) throw new Error('Không thể tải danh sách ứng viên');
+
+            const d1    = await r1.json();
+            const list1 = parseCandidateList(d1);
+            const total = getResponseTotal(d1, list1.length);
+
+            console.log('[Candidates] page=1 items:', list1.length, '| total:', total);
+
+            /* ── Nếu đã đủ → dừng ── */
+            if (list1.length === 0 || list1.length >= total) {
+                setCandidates(mergeCandidatesById(list1));
+                setTotalItems(total || list1.length);
+                return;
+            }
+
+            /* ── Fetch các page còn lại song song với header page/size ── */
+            const pageSize   = list1.length || 12;
+            const totalPages = Math.min(50, Math.ceil(total / pageSize));
+
+            const restPromises = [];
+            for (let p = 2; p <= totalPages; p++) {
+                const q = buildCandidateQuery(currentFilters);
+                restPromises.push(
+                    fetch(`${baseUrl}?${q}`, { headers: makeHeaders(p, pageSize) })
+                        .then(r => {
+                            if (r.status === 401) {
+                                localStorage.removeItem('access_token');
+                                window.location.href = '/login';
+                                return [];
+                            }
+                            return r.ok ? r.json() : null;
+                        })
+                        .then(d => {
+                            const l = parseCandidateList(d);
+                            console.log(`[Candidates] page=${p} items:`, l.length);
+                            return l;
+                        })
+                        .catch(err => { console.error(`page ${p} error:`, err); return []; })
+                );
+            }
+
+            const restPages = await Promise.all(restPromises);
+            const allItems  = [list1, ...restPages].flat();
+            const finalList = mergeCandidatesById(allItems);
+
+            console.log('[Candidates] Tổng sau gộp:', finalList.length, '| total backend:', total);
+
+            setCandidates(finalList);
+            setTotalItems(total || finalList.length);
         } catch (error) {
-            console.error('Error fetching candidates:', error);
+            console.error('fetchCandidates error:', error);
+            message.error(error.message || 'Không thể tải danh sách ứng viên');
         } finally {
             setLoading(false);
         }
     };
 
+
+
     const fetchPipelineStages = async () => {
         const token = localStorage.getItem('access_token');
         try {
-            const response = await fetch('http://localhost:8086/api/recruitment/pipeline-stages', {
+            const response = await fetch('http://localhost:3000/api/recruitment/pipeline-stages', {
                 headers: { 'Authorization': `Bearer ${token}` }
             });
             if (response.ok) {
@@ -178,7 +329,7 @@ const Candidates = ({ menus, user }) => {
     const fetchPositions = async () => {
         const token = localStorage.getItem('access_token');
         try {
-            const response = await fetch('http://localhost:8086/api/recruitment-order/manager/all?status=inprogress', {
+            const response = await fetch('http://localhost:3000/api/recruitment-order/manager/all?status=inprogress', {
                 headers: { 'Authorization': `Bearer ${token}` }
             });
             if (response.ok) {
@@ -190,22 +341,79 @@ const Candidates = ({ menus, user }) => {
         }
     };
 
-    const debouncedFetch = useRef(
-        debounce((currentFilters) => {
-            fetchCandidates(currentFilters);
-        }, 300)
-    ).current;
+    const handleSyncGoogleSheet = async (silent = false) => {
+        if (syncingSheet) return;
 
-    const handleFilterChange = (name, value) => {
-        const newFilters = { ...filters, [name]: value };
-        setFilters(newFilters);
-        if (name === 'search') {
-            debouncedFetch(newFilters);
+        const token = localStorage.getItem('access_token');
+        setSyncingSheet(true);
+
+        try {
+            const response = await fetch('http://localhost:3000/api/recruitment/candidate/google-sheet/sync', {
+                method: 'POST',
+                headers: {
+                    'Authorization': `Bearer ${token}`,
+                    'Accept': 'application/json'
+                }
+            });
+
+            if (response.status === 401) {
+                localStorage.removeItem('access_token');
+                message.error('Phiên đăng nhập đã hết hạn. Vui lòng đăng nhập lại.');
+                window.location.href = '/login';
+                return;
+            }
+
+            const result = await response.json().catch(() => ({}));
+
+            if (!response.ok) {
+                throw new Error(result?.message || 'Đồng bộ Google Sheet thất bại');
+            }
+
+            const syncedAt = new Date();
+setLastSyncedAt(syncedAt);
+localStorage.setItem('candidates_last_synced_at', syncedAt.toISOString());
+            if (!silent) {
+                message.success(result?.message || 'Đồng bộ ứng viên từ Google Sheet thành công');
+            }
+
+            // Không dùng response sync để setCandidates, vì response sync có thể chỉ là dữ liệu mới.
+            // Luôn gọi lại API danh sách để không làm mất dữ liệu cũ trên FE.
+            await fetchCandidates();
+        } catch (error) {
+            console.error('Sync Google Sheet error:', error);
+            if (!silent) message.error(error.message || 'Không thể đồng bộ Google Sheet');
+        } finally {
+            setSyncingSheet(false);
         }
     };
 
+    useEffect(() => {
+        const savedSyncedAt = localStorage.getItem('candidates_last_synced_at');
+        if (savedSyncedAt) {
+            setLastSyncedAt(new Date(savedSyncedAt));
+        }
+    }, []);
+
+    const syncRef = useRef(handleSyncGoogleSheet);
+    useEffect(() => {
+        syncRef.current = handleSyncGoogleSheet;
+    }, [handleSyncGoogleSheet]);
+
+    /* Auto-sync mỗi 60 phút — sử dụng ref để tránh stale closure và tránh reset interval liên tục */
+    useEffect(() => {
+        const intervalId = window.setInterval(() => {
+            syncRef.current(true);
+        }, 60 * 60 * 1000);
+
+        return () => window.clearInterval(intervalId);
+    }, []);
+
+
+    const handleFilterChange = (name, value) => {
+        setFilters(prev => ({ ...prev, [name]: value }));
+    };
+
     const applyFilters = () => {
-        fetchCandidates();
         setIsModalOpen(false);
     };
 
@@ -213,13 +421,9 @@ const Candidates = ({ menus, user }) => {
         setFilters({
             positions: [], statuses: [], pipelines: [{ code: null, results: [] }],
             levels: [], departments: [], sources: [], genders: [], schools: [],
-            startDate: null, endDate: null, search: ''
+            startDate: null, endDate: null, search: '', candidateId: null
         });
-        fetchCandidates({
-            positions: [], statuses: [], pipelines: [{ code: null, results: [] }],
-            levels: [], departments: [], sources: [], genders: [], schools: [],
-            startDate: null, endDate: null, search: ''
-        });
+        setSearchParams({});
     };
 
     const addPipeline = () => {
@@ -248,7 +452,7 @@ const Candidates = ({ menus, user }) => {
         if (!email || !email.includes('@') || isEditing) return;
         const token = localStorage.getItem('access_token');
         try {
-            const response = await fetch(`http://localhost:8086/api/recruitment/candidate/check`, {
+            const response = await fetch(`http://localhost:3000/api/recruitment/candidate/check`, {
                 method: 'POST',
                 headers: {
                     'Authorization': `Bearer ${token}`,
@@ -286,21 +490,44 @@ const Candidates = ({ menus, user }) => {
     const handleEdit = async (candidate) => {
         const token = localStorage.getItem('access_token');
         try {
-            const response = await fetch(`http://localhost:8086/api/recruitment/candidate/${candidate.id}`, {
-                headers: { 'Authorization': `Bearer ${token}` }
-            });
+            const [response, reviewRes] = await Promise.all([
+                fetch(`http://localhost:3000/api/recruitment/candidate/${candidate.id}`, {
+                    headers: { 'Authorization': `Bearer ${token}` }
+                }),
+                fetch(`http://localhost:3000/api/recruitment-manager/candidate`, {
+                    headers: { 'Authorization': `Bearer ${token}` }
+                })
+            ]);
+            
             if (response.ok) {
                 const data = await response.json();
                 const app = data.applications?.[0] || {};
                 const cv = app.cvs?.[0] || {};
                 
+                let mgrReview = null;
+                if (reviewRes.ok) {
+                    const rData = await reviewRes.json();
+                    const groups = rData.data?.candidates || {};
+                    const allCands = Object.values(groups).flat();
+                    const candReview = allCands.find(c => c.applicationId === app.id);
+                    if (candReview && candReview.reviewManager?.length > 0) {
+                        mgrReview = candReview.reviewManager[0];
+                        const managers = rData.data?.managers || [];
+                        const mgr = managers.find(m => m.id === mgrReview.reviewerId);
+                        if (mgr) mgrReview.reviewerName = mgr.name;
+                    }
+                }
+                
+                const rawGender = String(data.gender || '').toLowerCase();
+                const normalizedGender = (rawGender === 'female' || rawGender === 'nu' || rawGender === 'nữ') ? 'female' : 'male';
+
                 setEditingIds({ candidateId: data.id, applicationId: app.id });
                 setQuickCreateForm({
                     fullName: data.fullName || '',
                     email: data.email || '',
                     phone: data.phone || '',
                     universitySchool: data.universitySchool || '',
-                    gender: data.gender || 'male',
+                    gender: normalizedGender,
                     birthday: data.birthday || '',
                     appliedDate: app.appliedDate || new Date().toISOString(),
                     position: app.position || '',
@@ -314,7 +541,10 @@ const Candidates = ({ menus, user }) => {
                     gpa: app.gpa || '',
                     iqTest: app.iqTest || '',
                     techTest: app.techTest || '',
-                    thinkingTest: app.thinkingTest || ''
+                    thinkingTest: app.thinkingTest || '',
+                    testOnlineStatus: app.testOnlineStatus || '',
+                    pipelineHistory: app.pipelineHistory || [],
+                    managerReview: mgrReview
                 });
                 setIsEditing(true);
                 setIsQuickCreateOpen(true);
@@ -329,7 +559,7 @@ const Candidates = ({ menus, user }) => {
         try {
             if (isEditing) {
                 // Update Candidate
-                const candRes = await fetch(`http://localhost:8086/api/recruitment/candidate/${editingIds.candidateId}`, {
+                const candRes = await fetch(`http://localhost:3000/api/recruitment/candidate/${editingIds.candidateId}`, {
                     method: 'PUT',
                     headers: { 'Authorization': `Bearer ${token}`, 'Content-Type': 'application/json' },
                     body: JSON.stringify({
@@ -343,7 +573,7 @@ const Candidates = ({ menus, user }) => {
                 });
 
                 // Update Application
-                const appRes = await fetch(`http://localhost:8086/api/recruitment/application/${editingIds.applicationId}`, {
+                const appRes = await fetch(`http://localhost:3000/api/recruitment/application/${editingIds.applicationId}`, {
                     method: 'PUT',
                     headers: { 'Authorization': `Bearer ${token}`, 'Content-Type': 'application/json' },
                     body: JSON.stringify({
@@ -358,7 +588,8 @@ const Candidates = ({ menus, user }) => {
                         gpa: quickCreateForm.gpa,
                         iqTest: quickCreateForm.iqTest,
                         techTest: quickCreateForm.techTest,
-                        thinkingTest: quickCreateForm.thinkingTest
+                        thinkingTest: quickCreateForm.thinkingTest,
+                        testOnlineStatus: quickCreateForm.testOnlineStatus
                     })
                 });
 
@@ -371,7 +602,7 @@ const Candidates = ({ menus, user }) => {
                 }
             } else {
                 // Create New
-                const response = await fetch('http://localhost:8086/api/recruitment/candidate', {
+                const response = await fetch('http://localhost:3000/api/recruitment/candidate', {
                     method: 'POST',
                     headers: { 'Authorization': `Bearer ${token}`, 'Content-Type': 'application/json' },
                     body: JSON.stringify(quickCreateForm)
@@ -410,47 +641,229 @@ const Candidates = ({ menus, user }) => {
         return null;
     };
 
-    return (
-        <div className="p-8 lg:p-12">
-            <div className="flex flex-col md:flex-row md:items-center justify-between gap-6 mb-10">
+    const getPrimaryApplication = (candidate) => {
+        return candidate?.applications?.[0] || candidate?.application || candidate?.latestApplication || {};
+    };
+
+    const getPositionLabelFromOrder = (order) => {
+        if (!order) return '';
+
+        const positionName = order.position || order.name || order.title || order.code || '';
+        const teamName = order.team || order.department || '';
+
+        if (positionName && teamName) return `${positionName} - ${teamName}`;
+        return positionName;
+    };
+
+    const findPositionById = (id) => {
+        if (id === undefined || id === null || id === '') return null;
+
+        return positions.find(item => {
+            return String(item.id) === String(id)
+                || String(item.orderId) === String(id)
+                || String(item.recruitmentOrderId) === String(id);
+        });
+    };
+
+    const getPositionDisplay = (application) => {
+        const order = application?.orderInfo || application?.recruitmentOrder || application?.order;
+        if (order) {
+            return order.position || order.name || order.title || order.code || '';
+        }
+
+        const positionId = application?.position || application?.positionId || application?.recruitmentOrderId || application?.orderId;
+        const position = findPositionById(positionId);
+        if (position) {
+            return position.position || position.name || position.title || position.code || '';
+        }
+
+        if (positionId) {
+            const posString = String(positionId);
+            if (posString.includes('-')) {
+                return posString.split('-')[0].trim();
+            }
+            return posString;
+        }
+
+        return '—';
+    };
+
+    const getGenderDisplay = (gender) => {
+        const normalized = String(gender || '').toLowerCase();
+        if (normalized === 'male' || normalized === 'nam') return 'Nam';
+        if (normalized === 'female' || normalized === 'nu' || normalized === 'nữ') return 'Nữ';
+        return gender || '—';
+    };
+
+    const getCandidateCvUrl = (application) => {
+        return application?.cvs?.[0]?.filePath || application?.cv?.filePath || application?.filePath || application?.cvUrl || '';
+    };
+
+    const positionFilterOptions = positions.map(position => ({
+        value: String(position.id),
+        label: getPositionLabelFromOrder(position) || `Order #${position.id}`
+    }));
+
+
+    const filteredCandidates = useMemo(() => {
+        const keyword = String(filters.search || '').trim().toLowerCase();
+        const candIdFilter = filters.candidateId ? String(filters.candidateId) : null;
+
+        return candidates.filter(candidate => {
+            const appId = candidate.id || candidate.candidateId;
+            if (candIdFilter && String(appId) !== candIdFilter && String(candidate.candidateId) !== candIdFilter) {
+                return false;
+            }
+
+            const app = getPrimaryApplication(candidate);
+            const positionLabel = getPositionDisplay(app);
+            const positionId = app?.position || app?.positionId || app?.recruitmentOrderId || app?.orderId;
+            const statusCode = app?.pipelineInfo?.code || app?.pipelineCode || app?.status || '';
+            const appliedDate = app?.appliedDate ? dayjs(app.appliedDate) : null;
+
+            const searchText = [
+                candidate?.fullName,
+                candidate?.email,
+                candidate?.phone,
+                candidate?.universitySchool,
+                positionLabel,
+                app?.level,
+                app?.department,
+                app?.source,
+                statusCode,
+                app?.pipelineInfo?.name
+            ].filter(Boolean).join(' ').toLowerCase();
+
+            const matchSearch = !keyword || searchText.includes(keyword);
+            const matchPosition = !filters.positions?.length || filters.positions.some(value => {
+                return String(value) === String(positionId) || String(value) === String(positionLabel);
+            });
+            const matchStatus = !filters.statuses?.length || filters.statuses.includes(statusCode);
+            const matchLevel = !filters.levels?.length || filters.levels.includes(app?.level);
+            const matchDepartment = !filters.departments?.length || filters.departments.includes(app?.department);
+            const matchSource = !filters.sources?.length || filters.sources.includes(app?.source);
+            const matchSchool = !filters.schools?.length || filters.schools.includes(candidate?.universitySchool);
+            const matchGender = !filters.genders?.length || filters.genders.some(gender => {
+                return String(gender).toLowerCase() === String(candidate?.gender || '').toLowerCase();
+            });
+            const matchStartDate = !filters.startDate || (appliedDate && !appliedDate.isBefore(dayjs(filters.startDate), 'day'));
+            const matchEndDate = !filters.endDate || (appliedDate && !appliedDate.isAfter(dayjs(filters.endDate), 'day'));
+
+            const pipelineCodes = filters.pipelines?.map(p => p.code).filter(Boolean) || [];
+            const pipelineResults = filters.pipelines?.flatMap(p => p.results).filter(Boolean) || [];
+            const matchPipelineCode = !pipelineCodes.length || pipelineCodes.includes(statusCode);
+            const matchPipelineResult = !pipelineResults.length || pipelineResults.includes(app?.pipelineResult || app?.result || app?.statusResult);
+
+            return matchSearch
+                && matchPosition
+                && matchStatus
+                && matchLevel
+                && matchDepartment
+                && matchSource
+                && matchSchool
+                && matchGender
+                && matchStartDate
+                && matchEndDate
+                && matchPipelineCode
+                && matchPipelineResult;
+        });
+    }, [candidates, filters, positions]);
+
+    /* ── Phân trang client-side ── */
+    const totalFiltered = filteredCandidates.length;
+    const totalUiPages  = Math.max(1, Math.ceil(totalFiltered / uiPageSize));
+    const pagedCandidates = filteredCandidates.slice(
+        (uiPage - 1) * uiPageSize,
+        uiPage * uiPageSize
+    );
+
+    /* Reset về trang 1 khi filter hoặc pageSize thay đổi */
+    const handleUiPageSizeChange = (newSize) => {
+        setUiPageSize(newSize);
+        setUiPage(1);
+    };
+
+    useEffect(() => {
+        const cId = searchParams.get('candidateId');
+        if (cId) {
+            handleEdit({ id: cId });
+            setFilters(prev => ({ ...prev, candidateId: cId }));
+        } else {
+            setFilters(prev => ({ ...prev, candidateId: null }));
+        }
+        // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, [searchParams]);
+
+  return (
+    <div className="p-8 lg:p-12">
+        <div className="mb-10">
+            <div className="flex flex-col md:flex-row md:items-center justify-between gap-6">
                 <div>
-                    <h1 className="text-3xl font-extrabold text-gray-900 mb-2">Thông tin ứng viên</h1>
-                    <p className="text-gray-500 font-medium">{totalItems} ứng viên</p>
+                    <h1 className="text-3xl font-extrabold text-gray-900 mb-2">
+                        Thông tin ứng viên
+                    </h1>
+                    <p className="text-gray-500 font-medium">
+                        {filteredCandidates.length}/{totalItems || candidates.length} ứng viên
+                    </p>
                 </div>
 
                 <div className="flex flex-wrap items-center gap-3">
                     <div className="relative">
                         <i className="fa-solid fa-magnifying-glass absolute left-4 top-1/2 -translate-y-1/2 text-gray-400"></i>
-                        <input 
-                            type="text" 
-                            placeholder="Tìm kiếm ứng viên..." 
+                        <input
+                            type="text"
+                            placeholder="Tìm kiếm ứng viên..."
                             className="pl-11 pr-4 py-3 bg-white border border-gray-200 rounded-2xl w-64 focus:ring-2 focus:ring-brand-600/20 focus:border-brand-600 outline-none transition-all"
                             value={filters.search}
                             onChange={(e) => handleFilterChange('search', e.target.value)}
                             onKeyDown={(e) => e.key === 'Enter' && fetchCandidates()}
                         />
                     </div>
-                    <button className="flex items-center gap-2 px-5 py-3 bg-white border border-gray-200 text-gray-700 font-bold rounded-2xl hover:bg-gray-50 transition-all">
-                        <i className="fa-solid fa-file-export"></i>
-                        Export
+
+                    <button
+                        onClick={() => handleSyncGoogleSheet(false)}
+                        disabled={syncingSheet}
+                        className="flex items-center gap-2 px-5 py-3 bg-green-600 text-white font-bold rounded-2xl hover:bg-green-700 disabled:opacity-60 disabled:cursor-not-allowed shadow-lg shadow-green-600/20 transition-all"
+                    >
+                        <i className={`fa-solid ${syncingSheet ? 'fa-spinner fa-spin' : 'fa-rotate'}`}></i>
+                        {syncingSheet ? 'Đang đồng bộ...' : 'Đồng bộ ứng viên'}
                     </button>
-                    <button 
+
+                    <button
                         onClick={() => setIsModalOpen(true)}
                         className="flex items-center gap-2 px-5 py-3 bg-white border border-gray-200 text-gray-700 font-bold rounded-2xl hover:bg-gray-50 transition-all"
                     >
                         <i className="fa-solid fa-sliders"></i>
                         Customize
                     </button>
-                    
-                    <button 
-                        onClick={() => { 
-                            setIsEditing(false); 
+
+                    <button
+                        onClick={() => {
+                            setIsEditing(false);
                             setQuickCreateForm({
-                                fullName: '', email: '', phone: '', universitySchool: '', gender: 'male', birthday: '',
-                                appliedDate: new Date().toISOString(), position: '', level: '', department: '', source: '',
-                                status: 'received_cv', filePath: '', productLinks: '', note: '', gpa: '', iqTest: '', techTest: '', thinkingTest: ''
+                                fullName: '',
+                                email: '',
+                                phone: '',
+                                universitySchool: '',
+                                gender: 'male',
+                                birthday: '',
+                                appliedDate: new Date().toISOString(),
+                                position: '',
+                                level: '',
+                                department: '',
+                                source: '',
+                                status: 'received_cv',
+                                filePath: '',
+                                productLinks: '',
+                                note: '',
+                                gpa: '',
+                                iqTest: '',
+                                techTest: '',
+                                thinkingTest: '',
+                                testOnlineStatus: '',
+                                managerReview: null
                             });
-                            setIsQuickCreateOpen(true); 
+                            setIsQuickCreateOpen(true);
                         }}
                         className="flex items-center gap-2 px-6 py-3 bg-brand-600 text-white font-bold rounded-2xl hover:bg-brand-700 shadow-lg shadow-brand-600/20 transition-all"
                     >
@@ -459,6 +872,29 @@ const Candidates = ({ menus, user }) => {
                     </button>
                 </div>
             </div>
+
+            {filters.candidateId && (
+                <div className="mt-3 flex items-center gap-2">
+                    <span className="px-3 py-1 bg-brand-50 text-brand-700 text-xs font-bold rounded-lg border border-brand-100 flex items-center gap-1.5 shadow-sm">
+                        Đang lọc theo ID ứng viên: {filters.candidateId}
+                        <button onClick={resetFilters} className="text-red-500 hover:text-red-700 font-black ml-1">✕</button>
+                    </span>
+                </div>
+            )}
+
+            <div className="mt-3 flex items-center gap-2 text-xs font-semibold text-blue-600">
+                <i className="fa-solid fa-clock-rotate-left"></i>
+                <span>
+                    Tự động đồng bộ mỗi 60 phút
+                    {lastSyncedAt && (
+                        <>
+                            {' '}· Lần đồng bộ gần nhất:{' '}
+                            {lastSyncedAt.toLocaleTimeString('vi-VN')} {lastSyncedAt.toLocaleDateString('vi-VN')}
+                        </>
+                    )}
+                </span>
+            </div>
+        </div>
 
             {/* Table */}
             <div className="bg-white rounded-[2rem] border border-gray-100 shadow-sm overflow-hidden">
@@ -486,11 +922,12 @@ const Candidates = ({ menus, user }) => {
                                         <td colSpan="11" className="px-6 py-8"><div className="h-4 bg-gray-100 rounded w-full"></div></td>
                                     </tr>
                                 ))
-                            ) : candidates.map((candidate, index) => {
-                                const app = candidate.applications?.[0] || {};
+                            ) : pagedCandidates.map((candidate, index) => {
+                                const globalIndex = (uiPage - 1) * uiPageSize + index;
+                                const app = getPrimaryApplication(candidate);
                                 return (
-                                    <tr key={candidate.id} className="hover:bg-gray-50/50 transition-colors group">
-                                        <td className="px-6 py-5 text-sm font-medium text-gray-400">{index + 1}</td>
+                                    <tr key={candidate.id ?? index} className="hover:bg-gray-50/50 transition-colors group">
+                                        <td className="px-6 py-5 text-sm font-medium text-gray-400">{globalIndex + 1}</td>
                                         <td className="px-6 py-5">
                                             <div>
                                                 <p className="text-sm font-bold text-gray-900 group-hover:text-brand-600 transition-colors">{candidate.fullName}</p>
@@ -499,21 +936,21 @@ const Candidates = ({ menus, user }) => {
                                             </div>
                                         </td>
                                         <td className="px-6 py-5 text-sm text-gray-600">{candidate.universitySchool || '—'}</td>
-                                        <td className="px-6 py-5 text-center text-sm text-gray-600 uppercase text-[10px] font-bold">{candidate.gender === 'male' ? 'Nam' : 'Nữ'}</td>
-                                        <td className="px-6 py-5 text-sm text-gray-600 font-medium">{app.orderInfo?.position || app.position || '—'}</td>
+                                        <td className="px-6 py-5 text-center text-sm text-gray-600 uppercase text-[10px] font-bold">{getGenderDisplay(candidate.gender)}</td>
+                                        <td className="px-6 py-5 text-sm text-gray-600 font-medium">{getPositionDisplay(app)}</td>
                                         <td className="px-6 py-5 text-sm text-gray-600">{app.level || '—'}</td>
                                         <td className="px-6 py-5 text-sm text-gray-600">{app.department || '—'}</td>
                                         <td className="px-6 py-5 text-sm text-gray-600">{app.source || '—'}</td>
                                         <td className="px-6 py-5 text-center">
-                                            <span className={`inline-flex px-3 py-1 rounded-full text-[10px] font-bold border ${getStatusColor(app.status)}`}>
-                                                {app.pipelineInfo?.name || app.status || '—'}
+                                            <span className={`inline-flex min-w-[112px] items-center justify-center rounded-full border px-3 py-1.5 text-xs font-bold leading-none whitespace-nowrap ${getStatusColor(app.status)}`}>
+                                              {app.pipelineInfo?.name || app.status || '—'}
                                             </span>
                                         </td>
                                         <td className="px-6 py-5 text-sm text-gray-600 text-center">{app.appliedDate ? new Date(app.appliedDate).toLocaleDateString('vi-VN') : '—'}</td>
                                         <td className="px-6 py-5 text-right">
                                             <div className="flex items-center justify-end gap-2">
                                                 <button 
-                                                    onClick={() => setPreviewCV({ url: app.cvs?.[0]?.filePath, name: candidate.fullName })}
+                                                    onClick={() => setPreviewCV({ url: getCandidateCvUrl(app), name: candidate.fullName })}
                                                     className="w-8 h-8 rounded-lg bg-brand-50 text-brand-600 flex items-center justify-center hover:bg-brand-100 transition-all"
                                                     title="Xem CV"
                                                 >
@@ -536,185 +973,480 @@ const Candidates = ({ menus, user }) => {
                 </div>
             </div>
 
+            {/* ── Pagination footer ── */}
+            {!loading && totalFiltered > 0 && (
+                <div style={{
+                    display: 'flex', alignItems: 'center', justifyContent: 'space-between',
+                    padding: '14px 20px', background: '#fff',
+                    border: '1px solid #F1F5F9', borderTop: '1px solid #E2E8F0',
+                    borderRadius: '0 0 24px 24px', marginTop: -1,
+                    flexWrap: 'wrap', gap: 10,
+                }}>
+                    {/* Left: rows per page + count */}
+                    <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                        <span style={{ fontSize: 12, color: '#64748B', whiteSpace: 'nowrap' }}>Số dòng/trang:</span>
+                        <select
+                            value={uiPageSize}
+                            onChange={e => handleUiPageSizeChange(Number(e.target.value))}
+                            style={{
+                                fontSize: 12, padding: '4px 8px', border: '1px solid #E2E8F0',
+                                borderRadius: 8, outline: 'none', color: '#0F172A',
+                                background: '#F8FAFC', cursor: 'pointer',
+                            }}
+                        >
+                            {[10, 20, 50, 100].map(n => <option key={n} value={n}>{n}</option>)}
+                        </select>
+                        <span style={{ fontSize: 12, color: '#94A3B8', marginLeft: 4 }}>
+                            {(uiPage - 1) * uiPageSize + 1}–{Math.min(uiPage * uiPageSize, totalFiltered)} / {totalFiltered} ứng viên
+                        </span>
+                    </div>
+
+                    {/* Right: page navigation */}
+                    <div style={{ display: 'flex', alignItems: 'center', gap: 4 }}>
+                        <span style={{ fontSize: 12, color: '#64748B', marginRight: 6, whiteSpace: 'nowrap' }}>
+                            Trang {uiPage}/{totalUiPages}
+                        </span>
+                        {[
+                            { icon: 'fa-angles-left',  action: () => setUiPage(1),            disabled: uiPage === 1, title: 'Trang đầu' },
+                            { icon: 'fa-chevron-left', action: () => setUiPage(p => p - 1),   disabled: uiPage === 1, title: 'Trang trước' },
+                        ].map(btn => (
+                            <button key={btn.icon} onClick={btn.action} disabled={btn.disabled} title={btn.title} style={{
+                                width: 30, height: 30, borderRadius: 8, border: '1px solid #E2E8F0',
+                                background: btn.disabled ? '#F8FAFC' : '#fff',
+                                color: btn.disabled ? '#CBD5E1' : '#475569',
+                                cursor: btn.disabled ? 'not-allowed' : 'pointer',
+                                display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 10,
+                            }}>
+                                <i className={`fa-solid ${btn.icon}`}></i>
+                            </button>
+                        ))}
+                        {/* Page numbers: show up to 5 centered around current */}
+                        {(() => {
+                            const range = [];
+                            let start = Math.max(1, uiPage - 2);
+                            let end   = Math.min(totalUiPages, start + 4);
+                            if (end - start < 4) start = Math.max(1, end - 4);
+                            for (let p = start; p <= end; p++) range.push(p);
+                            return range.map(p => (
+                                <button key={p} onClick={() => setUiPage(p)} style={{
+                                    width: 30, height: 30, borderRadius: 8, fontSize: 12,
+                                    fontWeight: p === uiPage ? 700 : 400,
+                                    border: p === uiPage ? '1.5px solid #2563EB' : '1px solid #E2E8F0',
+                                    background: p === uiPage ? '#EFF6FF' : '#fff',
+                                    color: p === uiPage ? '#2563EB' : '#475569',
+                                    cursor: 'pointer',
+                                    display: 'flex', alignItems: 'center', justifyContent: 'center',
+                                }}>{p}</button>
+                            ));
+                        })()}
+                        {[
+                            { icon: 'fa-chevron-right', action: () => setUiPage(p => p + 1),     disabled: uiPage === totalUiPages, title: 'Trang sau' },
+                            { icon: 'fa-angles-right',  action: () => setUiPage(totalUiPages),   disabled: uiPage === totalUiPages, title: 'Trang cuối' },
+                        ].map(btn => (
+                            <button key={btn.icon} onClick={btn.action} disabled={btn.disabled} title={btn.title} style={{
+                                width: 30, height: 30, borderRadius: 8, border: '1px solid #E2E8F0',
+                                background: btn.disabled ? '#F8FAFC' : '#fff',
+                                color: btn.disabled ? '#CBD5E1' : '#475569',
+                                cursor: btn.disabled ? 'not-allowed' : 'pointer',
+                                display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 10,
+                            }}>
+                                <i className={`fa-solid ${btn.icon}`}></i>
+                            </button>
+                        ))}
+                    </div>
+                </div>
+            )}
+
             {/* Quick Create / Edit Modal */}
             {isQuickCreateOpen && (
                 <div className="fixed inset-0 z-50 flex items-center justify-end">
                     <div className="absolute inset-0 bg-gray-900/40 backdrop-blur-sm" onClick={() => setIsQuickCreateOpen(false)}></div>
-                    <div className="bg-white w-full max-w-5xl h-screen shadow-2xl relative flex flex-col animate-slide-left">
-                        <div className="p-6 bg-brand-600 text-white flex items-center justify-between">
-                            <h2 className="text-xl font-bold">{isEditing ? 'Chỉnh sửa thông tin' : 'Thêm ứng viên mới'}</h2>
-                            <button onClick={() => setIsQuickCreateOpen(false)} className="w-10 h-10 flex items-center justify-center rounded-full hover:bg-white/10 transition-all">
-                                <i className="fa-solid fa-xmark text-xl"></i>
-                            </button>
+                    <div className="bg-white w-full max-w-6xl h-screen shadow-2xl relative flex flex-col animate-slide-left">
+                        {/* Header */}
+                        <div className="p-6 bg-white border-b border-gray-100 flex items-center justify-between sticky top-0 z-20">
+                            <div className="flex items-center gap-4">
+                                <div className="w-12 h-12 bg-blue-50 text-blue-600 rounded-full flex items-center justify-center text-xl font-bold">
+                                    {(quickCreateForm.fullName || 'U')[0]}
+                                </div>
+                                <div>
+                                    <h2 className="text-xl font-bold text-gray-900">
+                                        {isEditing ? 'Chỉnh sửa thông tin ứng viên' : 'Thêm ứng viên mới'} 
+                                        {isEditing && <span className="ml-2 text-sm font-medium text-gray-500">#{editingIds.candidateId}</span>}
+                                    </h2>
+                                    <p className="text-sm text-gray-500 mt-0.5">
+                                        {quickCreateForm.fullName || 'Chưa có tên'} {quickCreateForm.email && `· ${quickCreateForm.email}`}
+                                    </p>
+                                </div>
+                            </div>
+                            <div className="flex items-center gap-4">
+                                {isEditing && (
+                                    <div className="flex items-center gap-2">
+                                        <label className="text-xs font-bold text-gray-500 uppercase">Trạng thái:</label>
+                                        <select value={quickCreateForm.status} onChange={(e) => handleQuickCreateChange('status', e.target.value)} className="px-4 py-2.5 bg-gray-50 border border-gray-200 rounded-xl focus:border-brand-600 outline-none text-sm font-bold text-brand-700">
+                                            {pipelineStages.map(s => <option key={s.id} value={s.code}>{s.name}</option>)}
+                                        </select>
+                                    </div>
+                                )}
+                                <button onClick={() => setIsQuickCreateOpen(false)} className="w-10 h-10 flex items-center justify-center rounded-full text-gray-400 hover:bg-gray-100 hover:text-gray-700 transition-all">
+                                    <i className="fa-solid fa-xmark text-xl"></i>
+                                </button>
+                            </div>
                         </div>
 
-                        <div className="flex-1 overflow-y-auto p-8 pb-32">
-                            <div className="grid grid-cols-12 gap-10">
-                                <div className="col-span-12 lg:col-span-7 space-y-10">
-                                    <section>
-                                        <h3 className="text-sm font-bold text-orange-500 mb-6 flex items-center gap-2">
-                                            <span className="w-1 h-4 bg-orange-500 rounded-full"></span>
+                        <div className="flex-1 overflow-y-auto p-8 pb-32 bg-slate-50">
+                            <div className="grid grid-cols-12 gap-8">
+                                {/* Cột trái */}
+                                <div className="col-span-12 lg:col-span-7 space-y-6">
+                                    
+                                    {/* 1. Thông tin cá nhân */}
+                                    <section className="bg-white border border-gray-100 rounded-2xl p-6 shadow-sm">
+                                        <h3 className="text-sm font-bold text-blue-600 mb-6 flex items-center gap-2">
+                                            <i className="fa-solid fa-user"></i>
                                             Thông tin cá nhân
                                         </h3>
-                                        <div className="grid grid-cols-2 gap-6">
+                                        <div className="grid grid-cols-2 gap-5">
                                             <div className="col-span-2 md:col-span-1 space-y-1">
                                                 <label className="text-[10px] font-bold text-gray-400 uppercase">Họ và tên *</label>
-                                                <input type="text" value={quickCreateForm.fullName} onChange={(e) => handleQuickCreateChange('fullName', e.target.value)} className="w-full px-4 py-3 bg-white border border-gray-300 rounded-xl focus:bg-white focus:border-brand-600 outline-none transition-all text-sm" placeholder="Nhập họ và tên" />
+                                                <input type="text" value={quickCreateForm.fullName} onChange={(e) => handleQuickCreateChange('fullName', e.target.value)} className="w-full px-4 py-2.5 bg-gray-50 border border-gray-200 rounded-xl focus:bg-white focus:border-brand-600 outline-none transition-all text-sm" placeholder="Nhập họ và tên" />
                                             </div>
                                             <div className="col-span-2 md:col-span-1 space-y-1">
                                                 <label className="text-[10px] font-bold text-gray-400 uppercase">Email *</label>
-                                                <input type="email" value={quickCreateForm.email} onChange={(e) => handleQuickCreateChange('email', e.target.value)} className="w-full px-4 py-3 bg-white border border-gray-300 rounded-xl focus:bg-white focus:border-brand-600 outline-none transition-all text-sm" placeholder="example@gmail.com" />
+                                                <input type="email" value={quickCreateForm.email} onChange={(e) => handleQuickCreateChange('email', e.target.value)} className="w-full px-4 py-2.5 bg-gray-50 border border-gray-200 rounded-xl focus:bg-white focus:border-brand-600 outline-none transition-all text-sm" placeholder="example@gmail.com" />
                                             </div>
                                             <div className="col-span-2 md:col-span-1 space-y-1">
                                                 <label className="text-[10px] font-bold text-gray-400 uppercase">Số điện thoại *</label>
-                                                <input type="text" value={quickCreateForm.phone} onChange={(e) => handleQuickCreateChange('phone', e.target.value)} className="w-full px-4 py-3 bg-white border border-gray-300 rounded-xl focus:bg-white focus:border-brand-600 outline-none transition-all text-sm" placeholder="09xxxxxxx" />
+                                                <input type="text" value={quickCreateForm.phone} onChange={(e) => handleQuickCreateChange('phone', e.target.value)} className="w-full px-4 py-2.5 bg-gray-50 border border-gray-200 rounded-xl focus:bg-white focus:border-brand-600 outline-none transition-all text-sm" placeholder="09xxxxxxx" />
                                             </div>
                                             <div className="col-span-2 md:col-span-1 space-y-1">
                                                 <label className="text-[10px] font-bold text-gray-400 uppercase">Trường học</label>
-                                                <select value={quickCreateForm.universitySchool} onChange={(e) => handleQuickCreateChange('universitySchool', e.target.value)} className="w-full px-4 py-3 bg-white border border-gray-300 rounded-xl focus:bg-white focus:border-brand-600 outline-none transition-all text-sm appearance-none cursor-pointer">
+                                                <select value={quickCreateForm.universitySchool} onChange={(e) => handleQuickCreateChange('universitySchool', e.target.value)} className="w-full px-4 py-2.5 bg-gray-50 border border-gray-200 rounded-xl focus:bg-white focus:border-brand-600 outline-none transition-all text-sm appearance-none cursor-pointer">
                                                     <option value="">Chọn trường</option>
                                                     {filterOptions.schools.map(s => <option key={s} value={s}>{s}</option>)}
+                                                    {quickCreateForm.universitySchool && !filterOptions.schools.includes(quickCreateForm.universitySchool) && (
+                                                        <option value={quickCreateForm.universitySchool}>{quickCreateForm.universitySchool}</option>
+                                                    )}
                                                 </select>
                                             </div>
                                             <div className="col-span-2 md:col-span-1 space-y-1">
                                                 <label className="text-[10px] font-bold text-gray-400 uppercase">GPA</label>
-                                                <input type="text" value={quickCreateForm.gpa} onChange={(e) => handleQuickCreateChange('gpa', e.target.value)} className="w-full px-4 py-3 bg-white border border-gray-300 rounded-xl focus:bg-white focus:border-brand-600 outline-none transition-all text-sm" placeholder="Ví dụ: 3.5" />
+                                                <input type="text" value={quickCreateForm.gpa} onChange={(e) => handleQuickCreateChange('gpa', e.target.value)} className="w-full px-4 py-2.5 bg-gray-50 border border-gray-200 rounded-xl focus:bg-white focus:border-brand-600 outline-none transition-all text-sm" placeholder="Ví dụ: 3.5" />
                                             </div>
                                             <div className="col-span-2 md:col-span-1 space-y-1">
                                                 <label className="text-[10px] font-bold text-gray-400 uppercase">Giới tính</label>
-                                                <select value={quickCreateForm.gender} onChange={(e) => handleQuickCreateChange('gender', e.target.value)} className="w-full px-4 py-3 bg-white border border-gray-300 rounded-xl focus:bg-white focus:border-brand-600 outline-none transition-all text-sm appearance-none cursor-pointer">
+                                                <select value={quickCreateForm.gender} onChange={(e) => handleQuickCreateChange('gender', e.target.value)} className="w-full px-4 py-2.5 bg-gray-50 border border-gray-200 rounded-xl focus:bg-white focus:border-brand-600 outline-none transition-all text-sm appearance-none cursor-pointer">
                                                     {filterOptions.genders.map(g => <option key={g.value} value={g.value}>{g.label}</option>)}
                                                 </select>
                                             </div>
                                             <div className="col-span-2 md:col-span-1 space-y-1">
                                                 <label className="text-[10px] font-bold text-gray-400 uppercase">Năm sinh</label>
-                                                <input type="text" value={quickCreateForm.birthday} onChange={(e) => handleQuickCreateChange('birthday', e.target.value)} className="w-full px-4 py-3 bg-white border border-gray-300 rounded-xl focus:bg-white focus:border-brand-600 outline-none transition-all text-sm" placeholder="Ví dụ: 2000" />
+                                                <input type="text" value={quickCreateForm.birthday} onChange={(e) => handleQuickCreateChange('birthday', e.target.value)} className="w-full px-4 py-2.5 bg-gray-50 border border-gray-200 rounded-xl focus:bg-white focus:border-brand-600 outline-none transition-all text-sm" placeholder="Ví dụ: 2000" />
                                             </div>
                                         </div>
                                     </section>
 
-                                    <section>
-                                        <h3 className="text-sm font-bold text-orange-500 mb-6 flex items-center gap-2">
-                                            <span className="w-1 h-4 bg-orange-500 rounded-full"></span>
+                                    {/* 2. Thông tin ứng tuyển */}
+                                    <section className="bg-white border border-gray-100 rounded-2xl p-6 shadow-sm">
+                                        <h3 className="text-sm font-bold text-blue-600 mb-6 flex items-center gap-2">
+                                            <i className="fa-solid fa-briefcase"></i>
                                             Thông tin ứng tuyển
                                         </h3>
-                                        <div className="grid grid-cols-2 gap-6">
+                                        <div className="grid grid-cols-2 gap-5">
                                             <div className="col-span-2 space-y-1">
                                                 <label className="text-[10px] font-bold text-gray-400 uppercase">Vị trí ứng tuyển *</label>
-                                                <select value={quickCreateForm.position} onChange={(e) => handleQuickCreateChange('position', e.target.value)} className="w-full px-4 py-3 bg-white border border-gray-300 rounded-xl focus:bg-white focus:border-brand-600 outline-none transition-all text-sm">
-                                                    <option value="">Chọn vị trí</option>
-                                                    {positions.map(p => <option key={p.id} value={p.id}>{p.position} ({p.team})</option>)}
+                                                <select 
+                                                    value={quickCreateForm.position} 
+                                                    onChange={(e) => {
+                                                        const val = e.target.value;
+                                                        const order = positions.find(p => String(p.id) === String(val));
+                                                        if (order) {
+                                                            setQuickCreateForm(prev => ({
+                                                                ...prev,
+                                                                position: String(order.id),
+                                                                department: order.team || ''
+                                                            }));
+                                                        } else {
+                                                            handleQuickCreateChange('position', val);
+                                                        }
+                                                    }} 
+                                                    className="w-full px-4 py-2.5 bg-gray-50 border border-gray-200 rounded-xl focus:bg-white focus:border-brand-600 outline-none transition-all text-sm"
+                                                >
+                                                    <option value="">Chọn vị trí (từ Order)</option>
+                                                    {positions.map(p => (
+                                                        <option key={p.id} value={p.id}>
+                                                            {p.position} {p.team && `- ${p.team}`}
+                                                        </option>
+                                                    ))}
+                                                    {quickCreateForm.position && !positions.find(p => String(p.id) === String(quickCreateForm.position)) && (
+                                                        <option value={quickCreateForm.position}>
+                                                            {quickCreateForm.position}
+                                                        </option>
+                                                    )}
                                                 </select>
+                                                {quickCreateForm.position && !positions.find(p => String(p.id) === String(quickCreateForm.position)) && (
+                                                    <p className="text-[10px] text-red-500 italic mt-1">
+                                                        * Dữ liệu cũ chưa gắn với order, vui lòng chọn lại vị trí
+                                                    </p>
+                                                )}
                                             </div>
                                             <div className="col-span-1 space-y-1">
                                                 <label className="text-[10px] font-bold text-gray-400 uppercase">Level</label>
-                                                <select value={quickCreateForm.level} onChange={(e) => handleQuickCreateChange('level', e.target.value)} className="w-full px-4 py-3 bg-white border border-gray-300 rounded-xl focus:bg-white focus:border-brand-600 outline-none transition-all text-sm">
+                                                <select value={quickCreateForm.level} onChange={(e) => handleQuickCreateChange('level', e.target.value)} className="w-full px-4 py-2.5 bg-gray-50 border border-gray-200 rounded-xl focus:bg-white focus:border-brand-600 outline-none transition-all text-sm">
                                                     <option value="">Chọn level</option>
                                                     {filterOptions.levels.map(l => <option key={l} value={l}>{l}</option>)}
+                                                    {quickCreateForm.level && !filterOptions.levels.includes(quickCreateForm.level) && (
+                                                        <option value={quickCreateForm.level}>{quickCreateForm.level}</option>
+                                                    )}
                                                 </select>
                                             </div>
                                             <div className="col-span-1 space-y-1">
                                                 <label className="text-[10px] font-bold text-gray-400 uppercase">Phòng ban</label>
-                                                <select value={quickCreateForm.department} onChange={(e) => handleQuickCreateChange('department', e.target.value)} className="w-full px-4 py-3 bg-white border border-gray-300 rounded-xl focus:bg-white focus:border-brand-600 outline-none transition-all text-sm">
-                                                    <option value="">Chọn phòng ban</option>
-                                                    {filterOptions.departments.map(d => <option key={d} value={d}>{d}</option>)}
-                                                </select>
+                                                <div className="w-full px-4 py-2.5 bg-gray-100 border border-gray-200 rounded-xl text-gray-500 text-sm truncate flex flex-col justify-center min-h-[42px]">
+                                                    {quickCreateForm.department ? (
+                                                        <>
+                                                            <div className="font-medium text-gray-700">{quickCreateForm.department}</div>
+                                                        </>
+                                                    ) : '—'}
+                                                </div>
                                             </div>
                                             <div className="col-span-1 space-y-1">
                                                 <label className="text-[10px] font-bold text-gray-400 uppercase">Nguồn</label>
-                                                <select value={quickCreateForm.source} onChange={(e) => handleQuickCreateChange('source', e.target.value)} className="w-full px-4 py-3 bg-white border border-gray-300 rounded-xl focus:bg-white focus:border-brand-600 outline-none transition-all text-sm">
+                                                <select value={quickCreateForm.source} onChange={(e) => handleQuickCreateChange('source', e.target.value)} className="w-full px-4 py-2.5 bg-gray-50 border border-gray-200 rounded-xl focus:bg-white focus:border-brand-600 outline-none transition-all text-sm">
                                                     <option value="">Chọn nguồn</option>
                                                     {filterOptions.sources.map(s => <option key={s} value={s}>{s}</option>)}
+                                                    {quickCreateForm.source && !filterOptions.sources.includes(quickCreateForm.source) && (
+                                                        <option value={quickCreateForm.source}>{quickCreateForm.source}</option>
+                                                    )}
                                                 </select>
                                             </div>
-                                            <div className="col-span-1 space-y-1">
-                                                <label className="text-[10px] font-bold text-gray-400 uppercase">Trạng thái *</label>
-                                                <select value={quickCreateForm.status} onChange={(e) => handleQuickCreateChange('status', e.target.value)} className="w-full px-4 py-3 bg-white border border-gray-300 rounded-xl focus:bg-white focus:border-brand-600 outline-none transition-all text-sm">
-                                                    {pipelineStages.map(s => <option key={s.id} value={s.code}>{s.name}</option>)}
-                                                </select>
-                                            </div>
+                                            {!isEditing && (
+                                                <div className="col-span-1 space-y-1">
+                                                    <label className="text-[10px] font-bold text-gray-400 uppercase">Trạng thái *</label>
+                                                    <select value={quickCreateForm.status} onChange={(e) => handleQuickCreateChange('status', e.target.value)} className="w-full px-4 py-2.5 bg-gray-50 border border-gray-200 rounded-xl focus:bg-white focus:border-brand-600 outline-none transition-all text-sm">
+                                                        {pipelineStages.map(s => <option key={s.id} value={s.code}>{s.name}</option>)}
+                                                    </select>
+                                                </div>
+                                            )}
                                         </div>
                                     </section>
-                                    
-                                    <section>
-                                        <h3 className="text-sm font-bold text-orange-500 mb-6 flex items-center gap-2">
-                                            <span className="w-1 h-4 bg-orange-500 rounded-full"></span>
+
+                                    {/* 3. Kết quả đánh giá */}
+                                    <section className="bg-white border border-gray-100 rounded-2xl p-6 shadow-sm">
+                                        <h3 className="text-sm font-bold text-blue-600 mb-6 flex items-center gap-2">
+                                            <i className="fa-solid fa-star"></i>
                                             Kết quả đánh giá
                                         </h3>
-                                        <div className="grid grid-cols-3 gap-4 mb-6">
+                                        <div className="grid grid-cols-3 gap-4">
+                                            <div className="col-span-3 space-y-1 mb-2">
+                                                <label className="text-[10px] font-bold text-gray-400 uppercase">Trạng thái test online</label>
+                                                <select value={quickCreateForm.testOnlineStatus || ''} onChange={(e) => handleQuickCreateChange('testOnlineStatus', e.target.value)} className="w-full px-4 py-2.5 bg-gray-50 border border-gray-200 rounded-xl focus:bg-white focus:border-brand-600 outline-none transition-all text-sm">
+                                                    <option value="">-- Chưa có --</option>
+                                                    <option value="sent">Đã gửi test</option>
+                                                    <option value="passed">Qua test</option>
+                                                    <option value="not_attempt">Không làm test</option>
+                                                    <option value="failed">Không qua test</option>
+                                                </select>
+                                            </div>
                                             <div className="space-y-1">
                                                 <label className="text-[10px] font-bold text-gray-400 uppercase">IQ Test</label>
-                                                <input type="text" value={quickCreateForm.iqTest} onChange={(e) => handleQuickCreateChange('iqTest', e.target.value)} className="w-full px-4 py-3 bg-white border border-gray-300 rounded-xl focus:bg-white focus:border-brand-600 outline-none transition-all text-sm" placeholder="X/Y" />
+                                                <input type="text" value={quickCreateForm.iqTest} onChange={(e) => handleQuickCreateChange('iqTest', e.target.value)} className="w-full px-4 py-2.5 bg-gray-50 border border-gray-200 rounded-xl focus:bg-white focus:border-brand-600 outline-none transition-all text-sm" placeholder="X/Y" />
                                             </div>
                                             <div className="space-y-1">
                                                 <label className="text-[10px] font-bold text-gray-400 uppercase">Technical</label>
-                                                <input type="text" value={quickCreateForm.techTest} onChange={(e) => handleQuickCreateChange('techTest', e.target.value)} className="w-full px-4 py-3 bg-white border border-gray-300 rounded-xl focus:bg-white focus:border-brand-600 outline-none transition-all text-sm" placeholder="X/Y" />
+                                                <input type="text" value={quickCreateForm.techTest} onChange={(e) => handleQuickCreateChange('techTest', e.target.value)} className="w-full px-4 py-2.5 bg-gray-50 border border-gray-200 rounded-xl focus:bg-white focus:border-brand-600 outline-none transition-all text-sm" placeholder="X/Y" />
                                             </div>
                                             <div className="space-y-1">
                                                 <label className="text-[10px] font-bold text-gray-400 uppercase">Thinking</label>
-                                                <input type="text" value={quickCreateForm.thinkingTest} onChange={(e) => handleQuickCreateChange('thinkingTest', e.target.value)} className="w-full px-4 py-3 bg-white border border-gray-300 rounded-xl focus:bg-white focus:border-brand-600 outline-none transition-all text-sm" placeholder="X/Y" />
+                                                <input type="text" value={quickCreateForm.thinkingTest} onChange={(e) => handleQuickCreateChange('thinkingTest', e.target.value)} className="w-full px-4 py-2.5 bg-gray-50 border border-gray-200 rounded-xl focus:bg-white focus:border-brand-600 outline-none transition-all text-sm" placeholder="X/Y" />
                                             </div>
-                                        </div>
-                                        <div className="space-y-1">
-                                            <label className="text-[10px] font-bold text-gray-400 uppercase">Ghi chú</label>
-                                            <textarea value={quickCreateForm.note} onChange={(e) => handleQuickCreateChange('note', e.target.value)} className="w-full px-4 py-3 bg-white border border-gray-300 rounded-xl focus:bg-white focus:border-brand-600 outline-none transition-all text-sm min-h-[100px]" placeholder="Nhập ghi chú..."></textarea>
                                         </div>
                                     </section>
+
+                                    {/* 4. Ghi chú */}
+                                    <section className="bg-white border border-gray-100 rounded-2xl p-6 shadow-sm">
+                                        <h3 className="text-sm font-bold text-blue-600 mb-6 flex items-center gap-2">
+                                            <i className="fa-solid fa-note-sticky"></i>
+                                            Ghi chú
+                                        </h3>
+                                        <div className="space-y-1">
+                                            <textarea value={quickCreateForm.note} onChange={(e) => handleQuickCreateChange('note', e.target.value)} className="w-full px-4 py-3 bg-gray-50 border border-gray-200 rounded-xl focus:bg-white focus:border-brand-600 outline-none transition-all text-sm min-h-[100px]" placeholder="Nhập ghi chú HR..."></textarea>
+                                        </div>
+                                    </section>
+
+                                    {/* 5. Đánh giá bộ phận */}
+                                    {isEditing && (
+                                        <section className="bg-white border border-gray-100 rounded-2xl p-6 shadow-sm">
+                                            <h3 className="text-sm font-bold text-blue-600 mb-6 flex items-center gap-2">
+                                                <i className="fa-solid fa-users-viewfinder"></i>
+                                                Đánh giá bộ phận
+                                            </h3>
+                                            {!quickCreateForm.managerReview ? (
+                                                <div className="p-4 bg-slate-50 border border-gray-100 rounded-xl text-center">
+                                                    <p className="text-sm text-gray-400 font-medium italic">Chưa có đánh giá từ bộ phận</p>
+                                                </div>
+                                            ) : (
+                                                <div className="space-y-4">
+                                                    <div className="flex gap-4">
+                                                        <div className="flex-1 bg-slate-50 border border-gray-100 rounded-xl p-4 shadow-sm pb-4">
+                                                            <div className="flex items-start justify-between gap-4 mb-2">
+                                                                <div>
+                                                                    <h4 className="text-sm font-bold text-gray-800">
+                                                                        {quickCreateForm.managerReview.reviewerName || `Manager #${quickCreateForm.managerReview.reviewerId}`}
+                                                                        <span className="text-xs text-gray-500 font-normal ml-2">
+                                                                            (Bộ phận chọn hồ sơ)
+                                                                        </span>
+                                                                    </h4>
+                                                                    <div className="text-[11px] text-gray-500 font-medium flex items-center gap-2 mt-1">
+                                                                        <span className="flex items-center gap-1">
+                                                                            <i className="fa-regular fa-clock"></i> 
+                                                                            {quickCreateForm.managerReview.reviewedAt ? new Date(quickCreateForm.managerReview.reviewedAt).toLocaleDateString('vi-VN') : '—'}
+                                                                        </span>
+                                                                    </div>
+                                                                </div>
+                                                                <span className={`px-2.5 py-1 text-[10px] font-bold uppercase rounded-lg border ${
+                                                                    quickCreateForm.managerReview.status === 'APPROVE' ? 'bg-emerald-50 text-emerald-600 border-emerald-100' :
+                                                                    quickCreateForm.managerReview.status === 'REJECT' ? 'bg-red-50 text-red-600 border-red-100' :
+                                                                    'bg-amber-50 text-amber-600 border-amber-100'
+                                                                }`}>
+                                                                    {quickCreateForm.managerReview.status === 'APPROVE' ? 'Đã duyệt' :
+                                                                     quickCreateForm.managerReview.status === 'REJECT' ? 'Đã loại' :
+                                                                     'Chờ đánh giá'}
+                                                                </span>
+                                                            </div>
+                                                            <div className="text-xs text-gray-600 mt-3 p-2.5 bg-white rounded-lg border border-gray-100">
+                                                                <span className="font-semibold text-gray-700">Ghi chú: </span>
+                                                                {quickCreateForm.managerReview.note || 'Không có ghi chú'}
+                                                            </div>
+                                                        </div>
+                                                    </div>
+                                                </div>
+                                            )}
+                                        </section>
+                                    )}
+
+                                    {/* 6. Lịch sử tuyển dụng */}
+                                    {isEditing && (
+                                        <section className="bg-white border border-gray-100 rounded-2xl p-6 shadow-sm">
+                                            <h3 className="text-sm font-bold text-blue-600 mb-6 flex items-center gap-2">
+                                                <i className="fa-solid fa-clock-rotate-left"></i>
+                                                Lịch sử tuyển dụng
+                                            </h3>
+                                            {(!quickCreateForm.pipelineHistory || quickCreateForm.pipelineHistory.length === 0) ? (
+                                                <div className="p-6 bg-slate-50 border border-gray-100 rounded-xl text-center">
+                                                    <p className="text-sm text-gray-400 font-medium italic">Chưa có lịch sử tuyển dụng</p>
+                                                </div>
+                                            ) : (
+                                                <div className="space-y-4">
+                                                    {quickCreateForm.pipelineHistory.map((history, idx) => (
+                                                        <div key={idx} className="flex gap-4">
+                                                            <div className="flex flex-col items-center">
+                                                                <div className="w-3 h-3 rounded-full bg-blue-500 mt-1.5 shadow-[0_0_0_4px_rgba(37,99,235,0.1)]"></div>
+                                                                {idx < quickCreateForm.pipelineHistory.length - 1 && (
+                                                                    <div className="w-px h-full bg-gray-200 mt-2"></div>
+                                                                )}
+                                                            </div>
+                                                            <div className="flex-1 bg-slate-50 border border-gray-100 rounded-xl p-4 shadow-sm pb-4">
+                                                                <div className="flex items-start justify-between gap-4 mb-2">
+                                                                    <div>
+                                                                        <h4 className="text-sm font-bold text-gray-800">
+                                                                            {PIPELINE_LABELS[history.recruitmentPipelineCode] || history.recruitmentPipelineCode}
+                                                                        </h4>
+                                                                        <div className="text-[11px] text-gray-500 font-medium flex items-center gap-2 mt-1">
+                                                                            <span className="flex items-center gap-1"><i className="fa-regular fa-clock"></i> {formatDateTime(history.startTime)}</span>
+                                                                            <span>-</span>
+                                                                            <span>{history.endTime ? formatDateTime(history.endTime) : 'Đang xử lý'}</span>
+                                                                        </div>
+                                                                    </div>
+                                                                    <span className={`px-2.5 py-1 text-[10px] font-bold uppercase rounded-lg border ${
+                                                                        history.result === 'pass' ? 'bg-emerald-50 text-emerald-600 border-emerald-100' :
+                                                                        history.result === 'fail' ? 'bg-red-50 text-red-600 border-red-100' :
+                                                                        'bg-amber-50 text-amber-600 border-amber-100'
+                                                                    }`}>
+                                                                        {RESULT_LABELS[history.result] || history.result || 'Đang xử lý'}
+                                                                    </span>
+                                                                </div>
+                                                                {history.note && (
+                                                                    <div className="text-xs text-gray-600 mt-3 p-2.5 bg-white rounded-lg border border-gray-100">
+                                                                        <span className="font-semibold text-gray-700">Ghi chú: </span>
+                                                                        {history.note}
+                                                                    </div>
+                                                                )}
+                                                                {(history.creator || history.createdBy) && (
+                                                                    <div className="text-[10px] text-gray-400 mt-3 flex items-center gap-1.5 font-medium">
+                                                                        <i className="fa-solid fa-user-pen"></i> Người cập nhật: {history.creator?.fullName || history.creator?.name || history.createdBy}
+                                                                    </div>
+                                                                )}
+                                                            </div>
+                                                        </div>
+                                                    ))}
+                                                </div>
+                                            )}
+                                        </section>
+                                    )}
+
                                 </div>
 
-                                <div className="col-span-12 lg:col-span-5 space-y-10">
-                                    <section className="space-y-6">
-                                        <div className="space-y-1">
-                                            <label className="text-[10px] font-bold text-gray-400 uppercase">Link CV *</label>
-                                            <div className="relative">
-                                                <input type="text" value={quickCreateForm.filePath} onChange={(e) => handleQuickCreateChange('filePath', e.target.value)} className="w-full px-4 py-3 bg-white border border-gray-300 rounded-xl focus:bg-white focus:border-brand-600 outline-none transition-all text-sm pr-10" placeholder="https://drive.google.com/..." />
-                                                <i className="fa-solid fa-link absolute right-4 top-1/2 -translate-y-1/2 text-gray-400"></i>
-                                            </div>
+                                {/* Cột phải */}
+                                <div className="col-span-12 lg:col-span-5 space-y-6">
+                                    <section className="bg-white border border-gray-100 rounded-2xl p-6 shadow-sm flex flex-col h-full min-h-[750px] sticky top-8">
+                                        <div className="flex items-center justify-between mb-4">
+                                            <h3 className="text-sm font-bold text-orange-500 flex items-center gap-2">
+                                                <i className="fa-solid fa-file-pdf"></i>
+                                                Preview CV
+                                            </h3>
+                                            {quickCreateForm.filePath && (
+                                                <a href={quickCreateForm.filePath} target="_blank" rel="noreferrer" className="px-3 py-1.5 text-xs font-bold text-orange-600 bg-orange-50 hover:bg-orange-100 rounded-lg transition-colors flex items-center gap-1">
+                                                    Mở tab mới <i className="fa-solid fa-arrow-up-right-from-square"></i>
+                                                </a>
+                                            )}
                                         </div>
-
-                                        <div className="bg-gray-50 rounded-[2rem] border border-gray-100 overflow-hidden flex flex-col min-h-[650px]">
-                                            <div className="p-4 border-b border-gray-100 flex items-center justify-between bg-white/50">
-                                                <div className="flex items-center gap-2">
-                                                    <i className="fa-solid fa-file-pdf text-red-500"></i>
-                                                    <span className="text-xs font-bold text-gray-700 uppercase tracking-tight">Preview CV (AI)</span>
+                                        
+                                        <div className="space-y-4 mb-4">
+                                            <div className="space-y-1">
+                                                <label className="text-[10px] font-bold text-gray-400 uppercase">Link CV *</label>
+                                                <div className="relative">
+                                                    <input type="text" value={quickCreateForm.filePath} onChange={(e) => handleQuickCreateChange('filePath', e.target.value)} className="w-full px-4 py-2 bg-gray-50 border border-gray-200 rounded-xl focus:bg-white focus:border-brand-600 outline-none transition-all text-sm pr-10" placeholder="https://drive.google.com/..." />
+                                                    <i className="fa-solid fa-link absolute right-4 top-1/2 -translate-y-1/2 text-gray-400"></i>
                                                 </div>
                                             </div>
-                                            <div className="flex-1 bg-gray-100 relative">
-                                                {getDrivePreviewUrl(quickCreateForm.filePath) ? (
-                                                    <iframe 
-                                                        src={getDrivePreviewUrl(quickCreateForm.filePath)} 
-                                                        className="absolute inset-0 w-full h-full border-none" 
-                                                        title="CV Preview"
-                                                    ></iframe>
-                                                ) : (
-                                                    <div className="absolute inset-0 flex flex-col items-center justify-center p-8 text-center">
-                                                        <i className="fa-solid fa-cloud-arrow-up text-2xl text-gray-300 mb-4"></i>
-                                                        <p className="text-xs text-gray-400 font-medium">Dán link Drive để xem CV</p>
-                                                    </div>
-                                                )}
+                                            <div className="space-y-1">
+                                                <label className="text-[10px] font-bold text-gray-400 uppercase">Link Sản phẩm</label>
+                                                <div className="relative">
+                                                    <input type="text" value={quickCreateForm.productLinks} onChange={(e) => handleQuickCreateChange('productLinks', e.target.value)} className="w-full px-4 py-2 bg-gray-50 border border-gray-200 rounded-xl focus:bg-white focus:border-brand-600 outline-none transition-all text-sm pr-10" placeholder="Link Sản phẩm..." />
+                                                    <i className="fa-solid fa-globe absolute right-4 top-1/2 -translate-y-1/2 text-gray-400"></i>
+                                                </div>
                                             </div>
                                         </div>
-
-                                        <div className="space-y-1">
-                                            <label className="text-[10px] font-bold text-gray-400 uppercase">Link Sản phẩm</label>
-                                            <textarea value={quickCreateForm.productLinks} onChange={(e) => handleQuickCreateChange('productLinks', e.target.value)} className="w-full px-4 py-3 bg-white border border-gray-300 rounded-xl focus:bg-white focus:border-brand-600 outline-none transition-all text-sm min-h-[80px]" placeholder="Nhập link sản phẩm..."></textarea>
+                                        
+                                        <div className="flex-1 bg-slate-50 rounded-xl border border-gray-200 relative overflow-hidden mt-2">
+                                            {getDrivePreviewUrl(quickCreateForm.filePath) ? (
+                                                <iframe 
+                                                    src={getDrivePreviewUrl(quickCreateForm.filePath)} 
+                                                    className="absolute inset-0 w-full h-full border-none" 
+                                                    title="CV Preview"
+                                                ></iframe>
+                                            ) : (
+                                                <div className="absolute inset-0 flex flex-col items-center justify-center p-8 text-center">
+                                                    <i className="fa-solid fa-cloud-arrow-up text-3xl text-gray-300 mb-4"></i>
+                                                    <p className="text-sm text-gray-400 font-medium">Dán link Drive để xem CV</p>
+                                                </div>
+                                            )}
                                         </div>
                                     </section>
                                 </div>
                             </div>
                         </div>
 
-                        <div className="absolute bottom-0 inset-x-0 p-6 bg-white border-t border-gray-100 flex items-center justify-end gap-3 z-10">
-                            <button onClick={() => setIsQuickCreateOpen(false)} className="px-8 py-3 text-sm font-bold text-gray-500 hover:bg-gray-50 rounded-2xl transition-all border border-gray-200">Hủy</button>
-                            <button onClick={submitQuickCreate} className="px-10 py-3 text-sm font-bold bg-brand-600 text-white rounded-2xl shadow-xl shadow-brand-600/20 hover:bg-brand-700 transition-all">
-                                {isEditing ? 'Cập nhật' : 'Thêm mới'}
+                        <div className="absolute bottom-0 inset-x-0 p-5 bg-white border-t border-gray-100 flex items-center justify-end gap-3 z-30 shadow-[0_-4px_6px_-1px_rgba(0,0,0,0.05)]">
+                            <button onClick={() => setIsQuickCreateOpen(false)} className="px-8 py-2.5 text-sm font-bold text-gray-600 bg-gray-100 hover:bg-gray-200 rounded-xl transition-all">Hủy</button>
+                            <button onClick={submitQuickCreate} className="px-10 py-2.5 text-sm font-bold bg-brand-600 text-white rounded-xl shadow-lg shadow-brand-600/20 hover:bg-brand-700 transition-all flex items-center gap-2">
+                                <i className="fa-solid fa-floppy-disk"></i> {isEditing ? 'Cập nhật' : 'Thêm mới'}
                             </button>
                         </div>
                     </div>
                 </div>
             )}
 
-            {/* Standalone CV Preview Modal */}
+{/* Standalone CV Preview Modal */}
             {previewCV && (
                 <div className="fixed inset-0 z-[60] flex items-center justify-center p-4">
                     <div className="absolute inset-0 bg-gray-900/60 backdrop-blur-md" onClick={() => setPreviewCV(null)}></div>
@@ -766,6 +1498,9 @@ const Candidates = ({ menus, user }) => {
                                                 if (f.key === 'date') {
                                                     newFilters.startDate = null;
                                                     newFilters.endDate = null;
+                                                } else if (f.key === 'candidateId') {
+                                                    newFilters.candidateId = null;
+                                                    setSearchParams({});
                                                 } else {
                                                     newFilters[f.key] = [];
                                                 }
@@ -875,7 +1610,7 @@ const Candidates = ({ menus, user }) => {
                                     <label className="text-[11px] font-bold text-gray-600 flex items-center gap-2">
                                         <i className="fa-solid fa-briefcase text-blue-500"></i> Vị trí ứng tuyển
                                     </label>
-                                    <Select mode="multiple" maxTagCount={2} className="w-full h-11" placeholder="Tất cả" value={filters.positions} onChange={v => setFilters(prev => ({ ...prev, positions: v }))} options={filterOptions.positionsList.map(p => ({ value: p, label: p }))} />
+                                    <Select mode="multiple" maxTagCount={2} className="w-full h-11" placeholder="Tất cả" value={filters.positions} onChange={v => setFilters(prev => ({ ...prev, positions: v }))} options={positionFilterOptions} />
                                 </div>
                                 <div className="space-y-2">
                                     <label className="text-[11px] font-bold text-gray-600 flex items-center gap-2">
@@ -936,3 +1671,4 @@ const Candidates = ({ menus, user }) => {
 };
 
 export default Candidates;
+

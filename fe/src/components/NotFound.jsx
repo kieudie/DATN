@@ -15,7 +15,7 @@ const NotFound = () => {
             </div>
             <h2 className="text-3xl font-bold text-gray-900 mb-4">Ối! Trang này không tồn tại</h2>
             <p className="text-gray-500 max-w-md mb-10 leading-relaxed">
-                Có vẻ như đường dẫn bạn đang truy cập đã bị thay đổi hoặc không còn tồn tại trong hệ thống TalentHub.
+                Có vẻ như đường dẫn bạn đang truy cập đã bị thay đổi hoặc không còn tồn tại trong hệ thống HR Recruitment System.
             </p>
             <button 
                 onClick={() => navigate('/home')}
@@ -29,3 +29,4 @@ const NotFound = () => {
 };
 
 export default NotFound;
+
