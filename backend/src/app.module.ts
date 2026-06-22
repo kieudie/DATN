@@ -12,6 +12,7 @@ import { RolePageModule } from './main/role-page/role-page.module';
 import { RolesModule } from './main/roles/roles.module';
 import { UsersModule } from './main/users/users.module';
 
+import { ScheduleModule } from '@nestjs/schedule';
 import { NotificationModule } from "./main/notification/notification.module";
 import { RecruitmentCalendarModule } from "./main/recruitment-calendar/recruitment-calendar.module";
 import { RecruitmentModule } from './main/recruitment-candidate/recruitment.module';
@@ -36,10 +37,11 @@ import { ormConfig } from './typeorm/orm.config';
     RecruitmentModule,
     RecruitmentOrderModule,
     RecruitmentManagerModule,
+    ScheduleModule.forRoot(),
     SocketModule,
     NotificationModule,
     RecruitmentCalendarModule,
     RecruitmentReportModule,
   ],
 })
-export class AppModule {}
+export class AppModule {} 

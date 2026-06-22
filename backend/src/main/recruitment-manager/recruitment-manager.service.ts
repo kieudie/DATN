@@ -502,15 +502,12 @@ const queryBuilder = this.dataSource
         )
         .addSelect("ord.position", "orderPositionName")
         .where(`(${departmentConditions})`, departmentParams)
-.andWhere("app.status IN (:...managerVisibleStatuses)", {
-  managerVisibleStatuses: [
-    RECRUITMENT_PIPELINE_CODES.DEPARTMENT_REVIEW,
-    RECRUITMENT_PIPELINE_CODES.INTERVIEW_ROUND_1,
-    RECRUITMENT_PIPELINE_CODES.INTERVIEW_ROUND_2,
-    RECRUITMENT_PIPELINE_CODES.ONBOARDING,
-    RECRUITMENT_PIPELINE_CODES.FAIL,
-  ],
-});
+.innerJoin(
+  "recruitment_candidate_manager_review",
+  "manager_review",
+  "manager_review.application_id = app.id AND manager_review.reviewer_id IN (:...managerIds)",
+  { managerIds: managers.map(m => m.id) }
+);
 //queryBuilder.setParameter(
   //"departmentReviewCode",
   //RECRUITMENT_PIPELINE_CODES.DEPARTMENT_REVIEW,
@@ -540,9 +537,9 @@ if (managerSpecializations.length > 0) {
   queryBuilder.andWhere(`(${specConditions})`, specParams);
 }
       queryBuilder
-      //  .andWhere("app.test_online_status = :testStatus", {
-        //  testStatus: TestOnlineStatus.PASSED,
-       // })
+        .andWhere("app.test_online_status = :testStatus", {
+          testStatus: 'PASSED',
+        })
         .andWhere("app.deleted_at IS NULL")
 .andWhere("candidate.deleted_at IS NULL")
       .select([
@@ -617,14 +614,16 @@ for (const raw of results) {
         //  })
         //  .orderBy("pipeline.created_at", "DESC")
        //   .getMany();
+       const appId = app.app_id ?? app.id;
+        const candidateId = app.app_candidate_id ?? app.candidate_id;
        const pipelineHistory = await this.dataSource
         .createQueryBuilder()
          .select("pipeline")
         .from("candidate_pipeline", "pipeline")
-       .where("pipeline.application_id = :appId", { appId: app.id })
-        .andWhere("pipeline.candidate_id = :candidateId", {
-        candidateId: app.candidate_id,
-     })
+.where("pipeline.application_id = :appId", { appId })
+.andWhere("pipeline.candidate_id = :candidateId", {
+  candidateId,
+})
        .andWhere("pipeline.recruitment_pipeline_code = :appStatus", {
        appStatus: RECRUITMENT_PIPELINE_CODES.IQ_TEST,
      })
@@ -635,19 +634,19 @@ for (const raw of results) {
         const reviewRecords = await this.dataSource
           .getRepository(RecruitmentCandidateManagerReview)
           .createQueryBuilder("review")
-          .where("review.application_id = :appId", { appId: app.id })
+          .where("review.application_id = :appId", { appId })
           .orderBy("review.created_at", "DESC")
           .getMany();
 
 const candidateData = {
-  applicationId: app.app_id ?? app.id,
-  candidateId: app.app_candidate_id ?? app.candidate_id,
+applicationId: appId,
+candidateId,
   fullName: app.candidate_full_name,
   email: app.candidate_email,
   phone: app.candidate_phone,
   gender: app.candidate_gender,
   universitySchool: app.candidate_university_school,
-  position: orderPositionMap.get(app.app_id ?? app.id) || app.app_position || app.position,
+  position: orderPositionMap.get(appId) || app.app_position || app.position,
   orderId: app.app_position ?? app.position,
   level: app.app_level ?? app.level,
   department: app.app_department ?? app.department,
@@ -861,19 +860,10 @@ categorizeCandidateByReviewStatus(
             }
 
             // Create new pipeline history entry for DEPARTMENT_REVIEW only if not already exists
-            const blockedCodes = [
-              RECRUITMENT_PIPELINE_CODES.DEPARTMENT_REVIEW,
-              RECRUITMENT_PIPELINE_CODES.TECHNICAL_TEST,
-              RECRUITMENT_PIPELINE_CODES.INTERVIEW_ROUND_1,
-              RECRUITMENT_PIPELINE_CODES.INTERVIEW_ROUND_2,
-              RECRUITMENT_PIPELINE_CODES.OFFER,
-              RECRUITMENT_PIPELINE_CODES.ONBOARDING,
-              RECRUITMENT_PIPELINE_CODES.FAIL,
-            ];
             const existingPipeline = await queryRunner.manager.query(
               `SELECT id FROM candidate_pipeline 
-               WHERE application_id = ? AND recruitment_pipeline_code IN (?) LIMIT 1`,
-              [appId, blockedCodes],
+               WHERE application_id = ? AND recruitment_pipeline_code = ? AND end_time IS NULL LIMIT 1`,
+              [appId, createReviewDto.pipeline_code],
             );
 
             if (!existingPipeline || existingPipeline.length === 0) {
@@ -1162,18 +1152,19 @@ categorizeCandidateByReviewStatus(
   "o.id = CAST(a.position AS UNSIGNED) AND o.deleted_at IS NULL",
 )
 .innerJoin(
-  "candidate_pipeline",
-  "pipeline",
-  "pipeline.application_id = a.id AND pipeline.candidate_id = a.candidate_id AND pipeline.end_time IS NULL AND pipeline.recruitment_pipeline_code = :departmentReviewCode",
+  "recruitment_candidate_manager_review",
+  "review",
+  "review.application_id = a.id AND review.reviewer_id = :managerId AND review.pipeline_code COLLATE utf8mb4_unicode_ci = :departmentReviewCode AND review.status = :pendingStatus",
 )
 .where("c.deleted_at IS NULL")
 .setParameter(
   "departmentReviewCode",
   RECRUITMENT_PIPELINE_CODES.DEPARTMENT_REVIEW,
-);
+)
+.setParameter("pendingStatus", ReviewStatus.PENDING);
       if (fullname) {
         queryBuilder = queryBuilder.andWhere(
-          "(c.full_name LIKE :fullname OR a.position LIKE :fullname OR o.position LIKE :fullname)",
+          "(c.full_name COLLATE utf8mb4_unicode_ci LIKE :fullname OR a.position COLLATE utf8mb4_unicode_ci LIKE :fullname OR o.position COLLATE utf8mb4_unicode_ci LIKE :fullname)",
           {
             fullname: `%${fullname}%`,
           },
@@ -1192,75 +1183,28 @@ categorizeCandidateByReviewStatus(
         });
       }
 
-      if (manager.is_techlead) {
-        // is_techlead = "Tester_1" → extract position prefix "Tester"
-        const techleadPosition = manager.is_techlead.replace(/_\d+$/, "");
-        // Techlead can see all candidates where order.position matches, regardless of department
-       // queryBuilder = queryBuilder.andWhere(
-       //   "o.position LIKE :techleadPosition",
-         // {
-           // techleadPosition: `%${techleadPosition}%`,
-        //  },
-       // );
-       queryBuilder = queryBuilder.andWhere(
-  "(a.position LIKE :techleadPosition OR o.position LIKE :techleadPosition)",
-  {
-    techleadPosition: `%${techleadPosition}%`,
-  },
-);
-      } else {
-        // Normal manager: filter by department and specialization
-        const conditions: string[] = [];
-        const params: Record<string, any> = {};
+      // Lọc vị trí theo bảng recruitment_manager_permissions
+      queryBuilder = queryBuilder
+        .innerJoin(
+          "recruitment_manager_permissions",
+          "p",
+          "p.manager_id = :managerId AND p.is_active = 1 AND p.specialization COLLATE utf8mb4_unicode_ci = o.position COLLATE utf8mb4_unicode_ci",
+        )
+        .setParameter("managerId", manager.id)
+        .distinct(true);
 
-        if (manager.department_name) {
-          const departments = manager.department_name
-            .split(",")
-            .map((d) => d.trim())
-            .filter((d) => d);
-          if (departments.length > 0) {
-            // application.department can have multiple values like "Data, HR"
-            const deptConditions = departments.map((dept, i) => {
-              params[`dept_${i}`] = `%${dept}%`;
-              return `a.department LIKE :dept_${i}`;
-            });
-            conditions.push(`(${deptConditions.join(" OR ")})`);
-          }
-        }
-
-        if (manager.specialization) {
-          const specializations = manager.specialization
-            .split(",")
-            .map((s) => s.trim())
-            .filter((s) => s);
-          if (specializations.length > 0) {
-            const specConditions = specializations.map((spec, i) => {
-              params[`spec_${i}`] = `%${spec}%`;
-             return `(a.position LIKE :spec_${i} OR o.position LIKE :spec_${i})`;
-            });
-            conditions.push(`(${specConditions.join(" OR ")})`);
-          }
-        }if (manager.specialization) {
-  const specializations = manager.specialization
-    .split(",")
-    .map((s) => s.trim())
-    .filter((s) => s);
-
-  if (specializations.length > 0) {
-    const specConditions = specializations.map((spec, i) => {
-      params[`spec_${i}`] = `%${spec}%`;
-      return `(a.position LIKE :spec_${i} OR o.position LIKE :spec_${i})`;
-    });
-
-    conditions.push(`(${specConditions.join(" OR ")})`);
-  }
-}
-
-        if (conditions.length > 0) {
-          queryBuilder = queryBuilder.andWhere(
-            conditions.join(" AND "),
-            params,
-          );
+      // Lọc theo department
+      if (manager.department_name) {
+        const departments = manager.department_name
+          .split(",")
+          .map((d) => d.trim())
+          .filter((d) => d);
+        if (departments.length > 0) {
+          const deptConditions = departments.map((dept, i) => {
+            queryBuilder.setParameter(`dept_${i}`, `%${dept}%`);
+            return `a.department COLLATE utf8mb4_unicode_ci LIKE :dept_${i}`;
+          });
+          queryBuilder.andWhere(`(${deptConditions.join(" OR ")})`);
         }
       }
 

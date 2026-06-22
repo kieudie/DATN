@@ -39,11 +39,11 @@ import { GetCandidatesPagedQueryDto } from "./dto/get-candidates-paged-query.dto
 import { GroupedCandidatesQueryDto } from "./dto/grouped-candidates-query.dto";
 import { MailRecruitmentDTO } from "./dto/mail-recruitment.dto";
 import { PipelineStageDTO } from "./dto/pipeline-stage.dto";
+import { SyncGoogleSheetCandidatesDto } from "./dto/sync-google-sheet-candidates.dto";
 import { UpdateApplicationDTO } from "./dto/update-application.dto";
 import { UpdateCandidateStatusDTO } from "./dto/update-candidate-status.dto";
 import { UpdateCandidateDTO } from "./dto/update-candidate.dto";
 import { RecruitmentService } from "./recruitment.service";
-
 @Controller("api/recruitment")
 @ApiTags("Recruitment Management")
 export class RecruitmentController {
@@ -74,8 +74,46 @@ export class RecruitmentController {
       res,
     );
   }
+  @Get("/candidate/google-sheet/sync-status")
+  @ApiBearerAuth()
+  @UseGuards(AuthGuard, RolesGuard)
+  @Roles(RoleType.RECRUITMENT_MANAGEMENT)
+  @ApiOperation({
+    summary: "Lấy thông tin lần đồng bộ Google Sheet gần nhất",
+  })
+  @ApiResponse({
+    status: HttpStatus.OK,
+    description: "Lấy thông tin thành công",
+  })
+  getGoogleSheetSyncStatus() {
+    return this.recruitmentService.getGoogleSheetSyncStatus();
+  }
 
+    @Post("/candidate/google-sheet/sync")
+  @ApiBearerAuth()
+  @UseGuards(AuthGuard, RolesGuard)
+  @Roles(RoleType.RECRUITMENT_MANAGEMENT)
+  @ApiOperation({
+    summary: "Đồng bộ dữ liệu ứng viên từ Google Sheet",
+  })
+  @ApiResponse({
+    status: HttpStatus.OK,
+    description: "Google Sheet candidates synced successfully",
+  })
+  async syncGoogleSheetCandidates(
+    @Body() body: SyncGoogleSheetCandidatesDto,
+    @Req() request: any,
+    @Res() res: Response,
+  ) {
+   const syncUserId =
+  request.user?.personnelCode ?? request.user?.id ?? 1;
 
+return await this.recruitmentService.syncGoogleSheetCandidates(
+  syncUserId,
+  body?.orderId,
+  res,
+);
+  }
   @Get("/candidate/:id")
   @ApiBearerAuth()
   @UseGuards(AuthGuard, RolesGuard)
@@ -462,4 +500,5 @@ export class RecruitmentController {
       data: result,
     });
   }
+  
 }

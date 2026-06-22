@@ -101,10 +101,10 @@ export class RecruitmentManagerController {
     );
   }
 
-  @Get("/candidate")
-  @ApiBearerAuth()
-  @UseGuards(AuthGuard, RolesGuard)
-  @Roles(RoleType.RECRUITMENT_MANAGER)
+@Get("/candidate")
+@ApiBearerAuth()
+@UseGuards(AuthGuard, RolesGuard)
+@Roles(RoleType.RECRUITMENT_MANAGER, RoleType.RECRUITMENT_MANAGEMENT)
   @ApiOperation({
     summary: "Get all candidates associated with managers",
   })

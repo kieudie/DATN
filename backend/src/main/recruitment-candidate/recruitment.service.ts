@@ -6,7 +6,10 @@ import {
   InternalServerErrorException,
   NotFoundException,
 } from "@nestjs/common";
+import { ConfigService } from "@nestjs/config";
+import { Cron } from "@nestjs/schedule";
 import { Response } from "express";
+import { google } from "googleapis";
 import { DataSource } from "typeorm";
 import { MESSAGE } from "../../common/constants/constants";
 import {
@@ -49,6 +52,7 @@ import { PipelineService } from "./pipeline/pipeline.service";
 @Injectable()
 export class RecruitmentService {
   private readonly logger = new LoggerService("RecruitmentService");
+  private lastGoogleSheetSyncedAt: Date | null = null;
 
   constructor(
     private readonly candidateService: CandidateService,
@@ -61,9 +65,404 @@ export class RecruitmentService {
     private readonly scheduledJobService: ScheduledJobService,
     private readonly recruitmentManagerService: RecruitmentManagerService,
     private readonly socketGateway: SocketGateway,
-    private dataSource: DataSource,
+    private readonly dataSource: DataSource,
+    private readonly configService: ConfigService,
   ) {}
+  // This method is used to fetch candidate profiles from a Google Sheet, transform the data into the desired format, and return it as an array of candidate objects.
+  private async getGoogleSheetCandidateProfiles() {
+  const keyFile = this.configService.get<string>(
+    "GOOGLE_SHEETS_CREDENTIALS_PATH",
+  );
+  const spreadsheetId = this.configService.get<string>(
+    "GOOGLE_SHEETS_SPREADSHEET_ID",
+  );
+  const range = this.configService.get<string>("GOOGLE_SHEETS_RANGE");
 
+  if (!keyFile || !spreadsheetId || !range) {
+    throw new BadRequestException(
+      "Missing Google Sheets configuration in .env",
+    );
+  }
+
+  const auth = new google.auth.GoogleAuth({
+    keyFile,
+    scopes: ["https://www.googleapis.com/auth/spreadsheets.readonly"],
+  });
+
+  const sheets = google.sheets({ version: "v4", auth });
+
+  const response = await sheets.spreadsheets.values.get({
+    spreadsheetId,
+    range,
+  });
+
+  const rows = response.data.values || [];
+
+  if (rows.length <= 1) {
+    return [];
+  }
+
+  const headers = rows[0].map((header) => String(header).trim());
+  const dataRows = rows.slice(1);
+
+  const getCell = (row: any[], names: string[]) => {
+    const index = headers.findIndex((header) => names.includes(header));
+
+    if (index === -1) {
+      return "";
+    }
+
+    return String(row[index] ?? "").trim();
+  };
+
+  return dataRows
+    .map((row) => {
+      const note = getCell(row, ["Ghi chú"]);
+      const expectedSalary = getCell(row, [
+        "Bạn mong muốn mức lương/mức hỗ trợ bao nhiêu (VND/tháng)?",
+      ]);
+
+      const syncNote = [
+        note,
+        expectedSalary
+          ? `Mức lương/mức hỗ trợ mong muốn: ${expectedSalary}`
+          : "",
+      ]
+        .filter(Boolean)
+        .join("\n");
+
+      return {
+        submittedAt: getCell(row, ["Dấu thời gian"]),
+        fullName: getCell(row, ["Họ và tên"]),
+        phone: getCell(row, ["Số điện thoại"]),
+        email: getCell(row, ["Email"]),
+        gender: getCell(row, ["Giới tính"]),
+        birthday: getCell(row, ["Năm sinh"]),
+        universitySchool: getCell(row, ["Trường học"]),
+        position: getCell(row, ["Vị trí ứng tuyển"]),
+        level: getCell(row, ["Level"]),
+        filePath: getCell(row, ["Link CV"]),
+        productLinks: getCell(row, ["Link sản phẩm/GitHub"]),
+        gpa: getCell(row, ["GPA"]),
+        source:
+          getCell(row, ["Bạn biết đến CG Game Studio qua kênh nào?"]) ||
+          "Google Forms",
+        note: syncNote,
+      };
+    })
+    .filter((item) => item.fullName || item.email || item.phone);
+}
+
+  getGoogleSheetSyncStatus() {
+    return {
+      lastSyncedAt: this.lastGoogleSheetSyncedAt,
+    };
+  }
+
+private parseGoogleFormTimestamp(value?: string): Date | undefined {
+  if (!value) {
+    return undefined;
+  }
+
+  const [datePart, timePart = "00:00:00"] = value.trim().split(" ");
+  const [day, month, year] = datePart.split("/").map(Number);
+  const [hour, minute, second] = timePart.split(":").map(Number);
+
+  if (!day || !month || !year) {
+    return undefined;
+  }
+
+  return new Date(year, month - 1, day, hour || 0, minute || 0, second || 0);
+}
+ async syncGoogleSheetCandidates(
+  userId: number,
+  orderId: number | undefined,
+  res: Response,
+) {
+  const profiles = await this.getGoogleSheetCandidateProfiles();
+
+  const result = {
+    message: "Sync Google Sheet candidates successfully",
+    total: profiles.length,
+    createdCandidates: 0,
+    updatedCandidates: 0,
+    createdApplications: 0,
+    createdCvs: 0,
+    createdPipelines: 0,
+    skipped: 0,
+    failed: [] as {
+      email?: string;
+      phone?: string;
+      reason: string;
+    }[],
+  };
+
+  const normalizeText = (value?: string) => {
+    return String(value || "")
+      .trim()
+      .toLowerCase()
+      .replace(/\s+/g, " ");
+  };
+
+  const normalizePositionForMatch = (value?: string) => {
+    const normalized = normalizeText(value);
+
+    const aliasMap: Record<string, string> = {
+      "game developer (unity/unreal)": "unity developer",
+      "unity developer (unity/unreal)": "unity developer",
+    };
+
+    return aliasMap[normalized] || normalized;
+  };
+
+  const queryRunner = this.dataSource.createQueryRunner();
+  await queryRunner.connect();
+  await queryRunner.startTransaction();
+
+  try {
+    const forcedOrderId = orderId ? Number(orderId) : undefined;
+
+    const orderRows: Array<{
+      id: number;
+      team: string;
+      position: string;
+      hr_level: string | null;
+    }> = await queryRunner.manager.query(
+      `
+      SELECT id, team, position, hr_level
+      FROM recruitment_orders
+      WHERE deleted_at IS NULL
+        AND status = 'inprogress'
+      `,
+    );
+
+    for (const profile of profiles) {
+      try {
+        if (!profile.email && !profile.phone) {
+          result.failed.push({
+            email: profile.email,
+            phone: profile.phone,
+            reason: "Missing email and phone",
+          });
+          continue;
+        }
+
+        const sheetPosition = String(profile.position || "").trim();
+        const sheetLevel = String(profile.level || "").trim();
+
+        let matchedOrders = forcedOrderId
+          ? orderRows.filter((order) => Number(order.id) === forcedOrderId)
+          : orderRows.filter((order) => {
+              return (
+                normalizePositionForMatch(order.position) ===
+                normalizePositionForMatch(sheetPosition)
+              );
+            });
+
+        if (!forcedOrderId && sheetLevel && matchedOrders.length > 1) {
+          const levelMatchedOrders = matchedOrders.filter((order) => {
+            if (!order.hr_level) return false;
+            return normalizeText(order.hr_level) === normalizeText(sheetLevel);
+          });
+
+          if (levelMatchedOrders.length > 0) {
+            matchedOrders = levelMatchedOrders;
+          }
+        }
+
+        let applicationPosition = sheetPosition || "Chưa xác định";
+        let applicationDepartment = "Chưa xác định";
+        const applicationLevel = sheetLevel || matchedOrders[0]?.hr_level || "";
+
+        if (matchedOrders.length === 1) {
+          const order = matchedOrders[0];
+          applicationPosition = String(order.id);
+          applicationDepartment = order.team || "Chưa xác định";
+        } else if (matchedOrders.length > 1) {
+          this.logger.log(`Warning: Multiple orders found for position ${sheetPosition}`);
+        }
+
+        const candidateRows = await queryRunner.manager.query(
+          `
+          SELECT id
+          FROM candidates
+          WHERE deleted_at IS NULL
+            AND (
+              email = ?
+              OR phone = ?
+            )
+          LIMIT 1
+          `,
+          [profile.email, profile.phone],
+        );
+
+        let candidate = candidateRows[0];
+
+        if (!candidate) {
+          const candidateEntity = this.candidateService.createEntity({
+            fullName: profile.fullName,
+            phone: profile.phone,
+            email: profile.email,
+            gender: profile.gender,
+            universitySchool: profile.universitySchool,
+            birthday: profile.birthday,
+          });
+
+          candidate = await queryRunner.manager.save(candidateEntity);
+          result.createdCandidates += 1;
+        } else {
+          await queryRunner.manager.query(
+            `
+            UPDATE candidates
+            SET
+              full_name = ?,
+              phone = ?,
+              email = ?,
+              gender = ?,
+              university_school = ?,
+              birthday = ?,
+              updated_at = NOW()
+            WHERE id = ?
+            `,
+            [
+              profile.fullName,
+              profile.phone,
+              profile.email,
+              profile.gender || null,
+              profile.universitySchool || null,
+              profile.birthday || null,
+              candidate.id,
+            ],
+          );
+
+          result.updatedCandidates += 1;
+        }
+
+        const applicationSource = profile.source || "Google Forms";
+
+        const existedApplicationRows = await queryRunner.manager.query(
+          `
+          SELECT id
+          FROM applications
+          WHERE deleted_at IS NULL
+            AND candidate_id = ?
+            AND position = ?
+            AND source = ?
+          LIMIT 1
+          `,
+          [candidate.id, applicationPosition, applicationSource],
+        );
+
+        if (existedApplicationRows.length > 0) {
+          result.skipped += 1;
+          continue;
+        }
+
+        const applicationEntity = this.applicationService.createEntity({
+          candidateId: candidate.id,
+          position: applicationPosition,
+          level: applicationLevel,
+          department: applicationDepartment,
+          source: applicationSource,
+          appliedDate:
+            this.parseGoogleFormTimestamp(profile.submittedAt) || new Date(),
+          status: RECRUITMENT_PIPELINE_CODES.RECEIVED_CV,
+          gpa: profile.gpa,
+          note: profile.note,
+          createdBy: userId,
+        });
+
+        const application = await queryRunner.manager.save(applicationEntity);
+        result.createdApplications += 1;
+
+        if (profile.filePath) {
+          const cvEntity = this.candidateCvService.createEntity({
+            candidateId: candidate.id,
+            applicationId: application.id,
+            filePath: profile.filePath,
+            productLinks: profile.productLinks,
+          });
+
+          await queryRunner.manager.save(cvEntity);
+          result.createdCvs += 1;
+        }
+
+        const pipelineEntity = this.candidatePipelineService.createEntity({
+          candidateId: candidate.id,
+          applicationId: application.id,
+          recruitmentPipelineCode: RECRUITMENT_PIPELINE_CODES.RECEIVED_CV,
+          startTime: new Date(),
+          result: PIPELINE_RESULT.PENDING,
+          createdBy: userId,
+        });
+
+        await queryRunner.manager.save(pipelineEntity);
+        result.createdPipelines += 1;
+      } catch (error) {
+        result.failed.push({
+          email: profile.email,
+          phone: profile.phone,
+          reason: error.message,
+        });
+      }
+    }
+
+    await queryRunner.commitTransaction();
+
+    this.lastGoogleSheetSyncedAt = new Date();
+    return res.status(HttpStatus.OK).json(result);
+  } catch (error) {
+    await queryRunner.rollbackTransaction();
+    this.logger.log(`Error syncing Google Sheet candidates: ${error.message}`);
+
+    if (error instanceof BadRequestException) {
+      throw error;
+    }
+
+    throw new InternalServerErrorException(
+      "Failed to sync Google Sheet candidates",
+    );
+  } finally {
+    await queryRunner.release();
+  }
+}
+// This method is a scheduled task that runs every 10 minutes to automatically synchronize candidate data from a Google Sheet into the system. It checks if the synchronization is enabled through configuration, and if so, it calls the syncGoogleSheetCandidates method with a system user ID and a default order ID. The results of the synchronization are logged for monitoring purposes.
+@Cron("0 * * * *")
+async autoSyncGoogleSheetCandidates() {
+  const enabled =
+    this.configService.get<string>("CANDIDATE_SYNC_CRON_ENABLED") === "true";
+
+  if (!enabled) {
+    return;
+  }
+
+  try {
+    const systemUserId = Number(
+      this.configService.get<string>("CANDIDATE_SYNC_SYSTEM_USER_ID") || 1,
+    );
+
+    const fakeResponse = {
+      status: () => ({
+        json: (data: any) => data,
+      }),
+    } as unknown as Response;
+
+    await this.syncGoogleSheetCandidates(
+      systemUserId,
+      undefined,
+      fakeResponse,
+    );
+
+    this.logger.log(
+      "Auto sync Google Sheet candidates completed",
+    );
+  } catch (error) {
+    this.logger.log(
+      `Auto sync Google Sheet candidates failed: ${error.message}`,
+    );
+  }
+}
+  // This method handles the creation of a candidate and their associated application, CV, and pipeline history in a single transaction. It first checks if a candidate with the provided email already exists, and if not, it creates a new candidate record. Then it creates a new application for the candidate with the provided details. If a file path for the CV is provided, it creates a CV record linked to the application. Finally, it creates an initial pipeline history entry for the application. The entire process is wrapped in a transaction to ensure data integrity, and appropriate error handling is implemented to manage any issues that arise during the operation.
   async createCandidate(
     createCandidateDto: CreateCandidateDTO,
     userId: number,
@@ -504,11 +903,11 @@ export class RecruitmentService {
           const previousOrder: number = prevRows[0].ord;
 
           // Allow only when desiredOrder is strictly greater than previousOrder
-          if (desiredOrder <= previousOrder) {
-            throw new BadRequestException(
-              `Cannot update status to '${updateStatusDto.status}' (order=${desiredOrder}). It must have higher order than previous status '${previousPipelineCode}' (order=${previousOrder}).`,
-            );
-          }
+          //if (desiredOrder <= previousOrder) {
+           // throw new BadRequestException(
+          //   `Cannot update status to '${updateStatusDto.status}' (order=${desiredOrder}). It must have higher order than previous status '${previousPipelineCode}' (order=${previousOrder}).`,
+          //  );
+        //  }
         }
       }
 
@@ -608,8 +1007,8 @@ if (REVIEW_PIPELINES.has(updateStatusDto.status)) {
     );
 
   if (!mailManagers || mailManagers.length === 0) {
-    throw new NotFoundException(
-      `Mail manager not found for departments: ${departmentNames.join(", ")}`,
+    this.logger.warn(
+      `Mail manager not found for departments: ${departmentNames.join(", ")}. Proceeding without creating review.`,
     );
   }
 

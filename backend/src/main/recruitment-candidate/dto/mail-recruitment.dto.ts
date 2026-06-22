@@ -26,6 +26,7 @@ export class MailRecruitmentDTO {
     required: false,
     description: "Địa chỉ email CC (Carbon Copy) cho email tuyển dụng.",
   })
+  @IsOptional()
   cc?: string | string[];
 
   @ApiProperty({
