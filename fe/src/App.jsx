@@ -11,6 +11,7 @@ import ManagerCandidateData from './components/ManagerCandidateData'
 import ManagerOrders from './components/ManagerOrders'
 import RecruitmentOrders from './components/RecruitmentOrders'
 import RecruitmentOrderPipeline from './components/RecruitmentOrderPipeline'
+import RecruitmentReport from './components/RecruitmentReport'
 
 function App() {
   return (
@@ -41,6 +42,8 @@ function App() {
         <Route path="/recruitment/orders/pipeline" element={<Layout><RecruitmentOrderPipeline /></Layout>} />
         <Route path="/recruitment/orders/process" element={<Layout><RecruitmentOrderPipeline /></Layout>} />
         <Route path="/recruitment/orders/workflow" element={<Layout><RecruitmentOrderPipeline /></Layout>} />
+
+        <Route path="/recruitment/report" element={<Layout><RecruitmentReport /></Layout>} />
 
         <Route path="/dashboard" element={<Navigate to="/home" replace />} />
         <Route path="*" element={<NotFound />} />

@@ -133,6 +133,15 @@ function getDisplayName() {
     }
 }
 
+const getCorrectPath = (item) => {
+    const nameLower = (item?.name || '').toLowerCase();
+    if (nameLower.includes('ứng viên của tôi') || nameLower.includes('my candidate')) return '/recruitment/my-candidates';
+    if (nameLower.includes('danh sách order')) return '/recruitment/orders/manager';
+    if (nameLower.includes('data ứng viên') || nameLower.includes('candidate data')) return '/recruitment/manager-candidate-data';
+    if (item?.path === '/recruitment/my-candidate') return '/recruitment/my-candidates';
+    return item?.path || '#';
+};
+
 const Dashboard = ({ menus = [], user }) => {
     const displayName = getDisplayName();
     const dashboardSubtitle = 'Theo dõi và quản lý các chức năng tuyển dụng trong hệ thống.';
@@ -264,7 +273,8 @@ const Dashboard = ({ menus = [], user }) => {
                         <div className="qa-grid">
                             {quickAccessItems.map((item, index) => {
                                 const accent = getAccentByIndex(index);
-                                const hasPath = Boolean(item?.path && item.path !== '#');
+                                const correctPath = getCorrectPath(item);
+                                const hasPath = Boolean(correctPath && correctPath !== '#');
 
                                 const content = (
                                     <>
@@ -303,7 +313,7 @@ const Dashboard = ({ menus = [], user }) => {
                                 return (
                                     <Link
                                         key={item?.id || item?.code || index}
-                                        to={item.path}
+                                        to={correctPath}
                                         className="qa-card qa-card--link"
                                     >
                                         {content}

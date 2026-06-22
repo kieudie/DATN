@@ -195,11 +195,33 @@ const ManagerCandidateData = () => {
         });
     };
 
+    const getEmailFromToken = () => {
+        try {
+            const token = localStorage.getItem('access_token');
+            if (!token) return null;
+            const parts = token.split('.');
+            if (parts.length !== 3) return null;
+            const payload = JSON.parse(atob(parts[1]));
+            return payload.email || payload.sub || null;
+        } catch {
+            return null;
+        }
+    };
+
     const fetchCandidates = async () => {
         setLoading(true);
         const token = localStorage.getItem('access_token');
+        const currentEmail = getEmailFromToken();
+
+        if (!currentEmail) {
+            message.error('Không xác định được tài khoản manager hiện tại.');
+            setCandidates([]);
+            setLoading(false);
+            return;
+        }
+
         try {
-            const response = await fetch(`http://localhost:3000/api/recruitment-manager/candidate`, {
+            const response = await fetch(`http://localhost:3000/api/recruitment-manager/candidate?email=${encodeURIComponent(currentEmail)}`, {
                 headers: {
                     'Authorization': `Bearer ${token}`
                 }

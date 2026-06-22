@@ -47,7 +47,22 @@ const RecruitmentOrderPipeline = () => {
                 if (item && item.id) return [item];
                 return [];
             });
-            const validOrders = normalizedOrders.filter((order) => order && order.id);
+            const validOrders = normalizedOrders.filter((order) => {
+                if (!order || !order.id) return false;
+
+                const hasPosition = Boolean(String(order.position || "").trim());
+                const hasTeam = Boolean(String(order.team || "").trim());
+
+                const hasBusinessInfo = [
+                    order.hrLevel,
+                    order.note,
+                    order.pic,
+                    order.createdBy,
+                    order.expiredDate,
+                ].some((value) => Boolean(String(value || "").trim()));
+
+                return hasPosition && hasTeam && hasBusinessInfo;
+            });
             setOrders(validOrders);
         } catch (error) {
             console.error('fetchOrders error:', error);
