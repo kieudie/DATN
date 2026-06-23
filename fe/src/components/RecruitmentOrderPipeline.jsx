@@ -239,7 +239,7 @@ const RecruitmentOrderPipeline = () => {
 
             case 'inprogress':
                 const q = parseInt(order.quantity) || 0;
-                const c = parseInt(order.completedQuantity) || 0;
+                const c = parseInt(order.processedCount ?? order.completedQuantity ?? order.completedCount ?? 0) || 0;
                 const percent = q > 0 ? Math.min(100, Math.round((c / q) * 100)) : 0;
                 
                 return (
@@ -272,7 +272,7 @@ const RecruitmentOrderPipeline = () => {
 
             case 'closed':
                 const cq = parseInt(order.quantity) || 0;
-                const cc = order.completedQuantity !== undefined ? order.completedQuantity : cq;
+                const cc = order.processedCount ?? order.completedQuantity ?? order.completedCount ?? cq;
                 return (
                     <>
                         <div className="p-3.5 flex flex-col">

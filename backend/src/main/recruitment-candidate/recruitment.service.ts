@@ -1462,6 +1462,7 @@ const attachments = files
             testOnlineStatus: app.testOnlineStatus,
             createdAt: app.createdAt,
             updatedAt: app.updatedAt,
+           picName: (app as any).orderInfo?.pic ?? null,
            createdBy:
   (app as any).creatorInfo?.personnelName ??
   (app as any).creatorInfo?.fullName ??

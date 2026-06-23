@@ -874,8 +874,15 @@ const RecruitmentPipeline = () => {
                         description: calDescription
                     })
                 });
-                if (!calRes.ok) {
-                    message.warning("Cảnh báo: Không thể tạo sự kiện Calendar.");
+                if (calRes.ok) {
+                    message.success("Đã tạo sự kiện Calendar thành công!");
+                } else {
+                    let errorMsg = "Không thể tạo sự kiện Calendar.";
+                    try {
+                        const errData = await calRes.json();
+                        if (errData?.message) errorMsg = `Không thể tạo sự kiện Calendar: ${errData.message}`;
+                    } catch (_) { /* ignore parse error */ }
+                    message.warning(`Cảnh báo: ${errorMsg}`);
                 }
             }
 
@@ -944,7 +951,7 @@ const RecruitmentPipeline = () => {
         const review = appId ? managerReviewMapByApplicationId[appId] : null;
         const positionLabel = getCandidatePositionText(candidate) || '—';
         const departmentLabel = getDepartmentLabel(candidate) || 'Chưa rõ bộ phận';
-        const managerLabel = candidate.picName || candidate.pic_name || candidate.hrPicName || candidate.hr_pic_name || 'Chưa phân công';
+        const managerLabel = candidate.picName || candidate.pic_name || candidate.hrPicName || candidate.hr_pic_name || candidate.orderInfo?.picName || candidate.orderInfo?.pic || candidate.order_pic_name || candidate.order_pic || candidate.pic || candidate.assignedTo || candidate.recruiter || candidate.hr || 'Chưa phân công';
         const isFemale = String(candidate.gender || '').toLowerCase() === 'female' || String(candidate.gender || '').toLowerCase() === 'nữ';
         const dateValue = candidate.appliedDate || candidate.applied_date || candidate.createdAt || candidate.created_at;
         const dateStr = dateValue ? dayjs(dateValue).format('DD/MM/YYYY') : '';
@@ -988,15 +995,32 @@ const RecruitmentPipeline = () => {
                             {candidate.level}
                         </span>
                     )}
-                    {review && (
-                        <span className={`px-2 py-0.5 rounded-[4px] font-bold text-[11px] ${
-                            review.status === 'REJECT' ? 'bg-rose-100 text-rose-600' : 
-                            review.status === 'APPROVE' ? 'bg-emerald-100 text-emerald-600' : 
-                            'bg-amber-100 text-amber-600'
-                        }`}>
-                            Manager: {review.status === 'REJECT' ? 'Đã loại' : review.status === 'APPROVE' ? 'Đã duyệt' : 'Chờ đánh giá'}
-                        </span>
-                    )}
+                    {review && (() => {
+                        const currentStage = (getCandidateCurrentStatus(candidate) || getStageCode(sourceStage) || '').toLowerCase();
+                        const pastDeptReview = ['interview_round_1','interview_round_2','offer','onboarding','hired'].includes(currentStage);
+                        
+                        let badgeText, badgeColor;
+                        if (review.status === 'REJECT') {
+                            badgeText = 'Manager: Đã loại';
+                            badgeColor = 'bg-rose-100 text-rose-600';
+                        } else if (review.status === 'APPROVE') {
+                            badgeText = 'Manager: Đã duyệt';
+                            badgeColor = 'bg-emerald-100 text-emerald-600';
+                        } else if (pastDeptReview) {
+                            // Đã qua bước đánh giá bộ phận → hiện "Đã duyệt" thay vì "Chờ đánh giá"
+                            badgeText = 'Manager: Đã duyệt';
+                            badgeColor = 'bg-emerald-100 text-emerald-600';
+                        } else {
+                            badgeText = 'Manager: Chờ đánh giá';
+                            badgeColor = 'bg-amber-100 text-amber-600';
+                        }
+                        
+                        return (
+                            <span className={`px-2 py-0.5 rounded-[4px] font-bold text-[11px] ${badgeColor}`}>
+                                {badgeText}
+                            </span>
+                        );
+                    })()}
                 </div>
 
                 <div className="text-[12px] text-slate-500 mb-1.5 flex items-center gap-2">
@@ -1805,13 +1829,36 @@ const RecruitmentPipeline = () => {
                                                                                 <span>{history.endTime ? formatDateTime(history.endTime) : 'Đang xử lý'}</span>
                                                                             </div>
                                                                         </div>
-                                                                        <span className={`px-2.5 py-1 text-[10px] font-bold uppercase rounded-lg border ${
-                                                                            history.result === 'pass' ? 'bg-emerald-50 text-emerald-600 border-emerald-100' :
-                                                                            history.result === 'fail' ? 'bg-red-50 text-red-600 border-red-100' :
-                                                                            'bg-amber-50 text-amber-600 border-amber-100'
-                                                                        }`}>
-                                                                            {RESULT_LABELS[history.result] || history.result || 'Đang xử lý'}
-                                                                        </span>
+                                                                        {(() => {
+                                                                            let resVal = (history.result || '').toLowerCase();
+                                                                            let statVal = (history.status || '').toLowerCase();
+                                                                            let noteVal = (history.note || '').toLowerCase();
+                                                                            
+                                                                            let text = 'Đang xử lý';
+                                                                            let colorClass = 'bg-amber-50 text-amber-600 border-amber-100';
+
+                                                                            const isPass = /pass|approved|done|completed|success/i.test(resVal) || /pass|approved|done|completed|success/i.test(statVal) || /pass|approve/i.test(noteVal);
+                                                                            const isFail = /fail|rejected/i.test(resVal) || /fail|rejected/i.test(statVal) || /fail|reject/i.test(noteVal);
+                                                                            const hasEnded = !!history.endTime || !!history.endDate;
+                                                                            const isPastStep = idx < quickReviewForm.pipelineHistory.length - 1;
+
+                                                                            if (isFail) {
+                                                                                text = 'KHÔNG ĐẠT';
+                                                                                colorClass = 'bg-red-50 text-red-600 border-red-100';
+                                                                            } else if (isPass) {
+                                                                                text = 'ĐẠT';
+                                                                                colorClass = 'bg-emerald-50 text-emerald-600 border-emerald-100';
+                                                                            } else if (hasEnded || isPastStep) {
+                                                                                text = 'ĐÃ QUA';
+                                                                                colorClass = 'bg-slate-100 text-slate-600 border-slate-200';
+                                                                            }
+
+                                                                            return (
+                                                                                <span className={`px-2.5 py-1 text-[10px] font-bold uppercase rounded-lg border ${colorClass}`}>
+                                                                                    {text}
+                                                                                </span>
+                                                                            );
+                                                                        })()}
                                                                     </div>
                                                                     {history.note && (
                                                                         <div className="text-xs text-gray-600 mt-3 p-2.5 bg-white rounded-lg border border-gray-100">

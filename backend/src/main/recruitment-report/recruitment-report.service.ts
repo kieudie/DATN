@@ -17,7 +17,7 @@ import { QueryReportOverviewDTO } from "./dto/query-report-overview.dto";
 export class RecruitmentReportService {
   private readonly logger = new LoggerService("RecruitmentReportService");
 
-  constructor(private readonly dataSource: DataSource) {}
+  constructor(private readonly dataSource: DataSource) { }
 
   /**
    * Bộ lọc ngày cho các report pipeline.
@@ -758,7 +758,7 @@ export class RecruitmentReportService {
         const totalQuantity = details.reduce((a, d) => a + d.quantity, 0);
         const onboardingCount = Number(
           rows.find((r) => r.level?.toLowerCase()?.trim() === level)?.diLam ??
-            0,
+          0,
         );
         successRateMap[level] =
           totalQuantity > 0
@@ -1406,7 +1406,7 @@ export class RecruitmentReportService {
       const qb = this.dataSource
         .createQueryBuilder()
         .select("u.id", "recruiterCode")
-        .addSelect("COALESCE(u.personnel_name, u.full_name, u.email)", "recruiterName")        .addSelect(
+        .addSelect("COALESCE(u.personnel_name, u.full_name, u.email)", "recruiterName").addSelect(
           `COUNT(DISTINCT CASE WHEN cp.recruitment_pipeline_code = '${RECRUITMENT_PIPELINE_CODES.RECEIVED_CV}' THEN app.id END)`,
           "ungTuyen",
         )
@@ -1448,7 +1448,7 @@ export class RecruitmentReportService {
         )
         .from("applications", "app")
         .innerJoin("users", "u", "u.id = app.created_by")
-       // .innerJoin("users", "u", "u.id = app.created_by")
+        // .innerJoin("users", "u", "u.id = app.created_by")
         // Join toàn bộ pipeline entries (không chỉ entry mới nhất)
         // → mỗi ứng viên được đếm cho MỌI bước họ đã đi qua trong khoảng cp.start_time.
         .leftJoin(
@@ -1461,12 +1461,12 @@ export class RecruitmentReportService {
         .andWhere("app.created_by IS NOT NULL");
 
       qb
-      .groupBy("app.created_by")
-      .addGroupBy("u.id")
-     .addGroupBy("u.personnel_name")
-     .addGroupBy("u.full_name")
-      .addGroupBy("u.email")
-     .orderBy("COALESCE(u.personnel_name, u.full_name, u.email)", "ASC");
+        .groupBy("app.created_by")
+        .addGroupBy("u.id")
+        .addGroupBy("u.personnel_name")
+        .addGroupBy("u.full_name")
+        .addGroupBy("u.email")
+        .orderBy("COALESCE(u.personnel_name, u.full_name, u.email)", "ASC");
 
       const rows = await qb.getRawMany();
 

@@ -23,16 +23,25 @@ const formatDate = (dateStr) => {
     return isNaN(d) ? '—' : d.toLocaleDateString('vi-VN', { day: '2-digit', month: '2-digit', year: 'numeric' });
 };
 
-const getCombinedStatus = (i) => `${i.status || ''} ${i.review_status || ''} ${i.manager_review_status || ''} ${i.latest_review_status || ''}`;
-const isApproved = (s) => /APPROVE|APPROVED|HIRED/i.test(s);
-const isRejected = (s) => /REJECT|REJECTED/i.test(s);
-const isPending = (s) => /PENDING|INTERVIEW|WAITING/i.test(s);
-
 const getTabForCandidate = (item) => {
-    const s = getCombinedStatus(item);
-    if (isApproved(s)) return TABS.APPROVED;
-    if (isRejected(s)) return TABS.REJECTED;
-    if (isPending(s)) return TABS.PENDING;
+    const reviewStatus = (item.review_status || item.manager_review_status || item.latest_review_status || '').toUpperCase();
+    const appStatus = (item.status || '').toUpperCase();
+
+    // 1. Review bị loại → "Đã loại"
+    if (/REJECT|REJECTED|FAIL|FAILED/.test(reviewStatus)) return TABS.REJECTED;
+
+    // 2. Review đã duyệt
+    if (/APPROVE|APPROVED|PASS|PASSED|HIRED/.test(reviewStatus)) {
+        // Nếu application đã thật sự chuyển sang interview → "Chờ phỏng vấn"
+        if (/INTERVIEW/.test(appStatus)) return TABS.PENDING;
+        // Ngược lại → "Đã duyệt" (manager đã duyệt, chưa chuyển bước)
+        return TABS.APPROVED;
+    }
+
+    // 3. Review đang PENDING hoặc chưa có → "Cần đánh giá"
+    // Chỉ tính "Chờ phỏng vấn" nếu application.status thật sự là interview
+    if (/INTERVIEW/.test(appStatus)) return TABS.PENDING;
+
     return TABS.NEED_REVIEW;
 };
 
