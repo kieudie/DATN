@@ -6,27 +6,27 @@ import { useSearchParams } from 'react-router-dom';
 const { RangePicker } = DatePicker;
 
 const PIPELINE_LABELS = {
-  received_cv: "Tiếp nhận hồ sơ",
-  hr_scan: "HR lọc hồ sơ",
-  iq_test: "Test IQ Online",
-  technical_test: "Test offline/Chuyên môn",
-  department_review: "Bộ phận chọn hồ sơ",
-  interview_round_1: "Phỏng vấn vòng 1",
-  interview_round_2: "Phỏng vấn vòng 2",
-  offer: "Offer",
-  onboarding: "Onboarding",
-  fail: "Không phù hợp",
+    received_cv: "Tiếp nhận hồ sơ",
+    hr_scan: "HR lọc hồ sơ",
+    iq_test: "Test IQ Online",
+    technical_test: "Test offline/Chuyên môn",
+    department_review: "Bộ phận chọn hồ sơ",
+    interview_round_1: "Phỏng vấn vòng 1",
+    interview_round_2: "Phỏng vấn vòng 2",
+    offer: "Offer",
+    onboarding: "Onboarding",
+    fail: "Không phù hợp",
 };
 
 const RESULT_LABELS = {
-  pending: "Đang xử lý",
-  pass: "Đạt",
-  fail: "Không đạt",
+    pending: "Đang xử lý",
+    pass: "Đạt",
+    fail: "Không đạt",
 };
 
 const formatDateTime = (value) => {
-  if (!value) return "--";
-  return new Date(value).toLocaleString("vi-VN");
+    if (!value) return "--";
+    return new Date(value).toLocaleString("vi-VN");
 };
 
 const Candidates = ({ menus, user }) => {
@@ -83,7 +83,7 @@ const Candidates = ({ menus, user }) => {
                 return stage ? stage.name : null;
             }).filter(Boolean);
             if (codes.length) list.push({ key: 'pipelineCodes', label: 'Pipeline', value: codes.join(', ') });
-            
+
             const results = filters.pipelines.flatMap(p => p.results).filter(Boolean);
             if (results.length) list.push({ key: 'pipelineResults', label: 'Kết quả pipeline', value: results.join(', ') });
         }
@@ -161,7 +161,7 @@ const Candidates = ({ menus, user }) => {
         fetchPipelineStages();
         fetchPositions();
     }, []);
-const parseCandidateList = (result) => {
+    const parseCandidateList = (result) => {
         if (Array.isArray(result)) return result;
         if (Array.isArray(result?.data)) return result.data;
         if (Array.isArray(result?.data?.data)) return result.data.data;
@@ -230,7 +230,7 @@ const parseCandidateList = (result) => {
         setLoading(true);
         setUiPage(1);
 
-        const token   = localStorage.getItem('access_token');
+        const token = localStorage.getItem('access_token');
         const baseUrl = 'http://localhost:3000/api/recruitment/candidates';
 
         /* ── Backend đọc page/size từ HTTP HEADER (BaseHeaderDTO), không phải query param ── */
@@ -254,7 +254,7 @@ const parseCandidateList = (result) => {
             }
             if (!r1.ok) throw new Error('Không thể tải danh sách ứng viên');
 
-            const d1    = await r1.json();
+            const d1 = await r1.json();
             const list1 = parseCandidateList(d1);
             const total = getResponseTotal(d1, list1.length);
 
@@ -268,7 +268,7 @@ const parseCandidateList = (result) => {
             }
 
             /* ── Fetch các page còn lại song song với header page/size ── */
-            const pageSize   = list1.length || 12;
+            const pageSize = list1.length || 12;
             const totalPages = Math.min(50, Math.ceil(total / pageSize));
 
             const restPromises = [];
@@ -294,7 +294,7 @@ const parseCandidateList = (result) => {
             }
 
             const restPages = await Promise.all(restPromises);
-            const allItems  = [list1, ...restPages].flat();
+            const allItems = [list1, ...restPages].flat();
             const finalList = mergeCandidatesById(allItems);
 
             console.log('[Candidates] Tổng sau gộp:', finalList.length, '| total backend:', total);
@@ -370,8 +370,8 @@ const parseCandidateList = (result) => {
             }
 
             const syncedAt = new Date();
-setLastSyncedAt(syncedAt);
-localStorage.setItem('candidates_last_synced_at', syncedAt.toISOString());
+            setLastSyncedAt(syncedAt);
+            localStorage.setItem('candidates_last_synced_at', syncedAt.toISOString());
             if (!silent) {
                 message.success(result?.message || 'Đồng bộ ứng viên từ Google Sheet thành công');
             }
@@ -498,12 +498,12 @@ localStorage.setItem('candidates_last_synced_at', syncedAt.toISOString());
                     headers: { 'Authorization': `Bearer ${token}` }
                 })
             ]);
-            
+
             if (response.ok) {
                 const data = await response.json();
                 const app = data.applications?.[0] || {};
                 const cv = app.cvs?.[0] || {};
-                
+
                 let mgrReview = null;
                 if (reviewRes.ok) {
                     const rData = await reviewRes.json();
@@ -517,7 +517,7 @@ localStorage.setItem('candidates_last_synced_at', syncedAt.toISOString());
                         if (mgr) mgrReview.reviewerName = mgr.name;
                     }
                 }
-                
+
                 const rawGender = String(data.gender || '').toLowerCase();
                 const normalizedGender = (rawGender === 'female' || rawGender === 'nu' || rawGender === 'nữ') ? 'female' : 'male';
 
@@ -786,7 +786,7 @@ localStorage.setItem('candidates_last_synced_at', syncedAt.toISOString());
 
     /* ── Phân trang client-side ── */
     const totalFiltered = filteredCandidates.length;
-    const totalUiPages  = Math.max(1, Math.ceil(totalFiltered / uiPageSize));
+    const totalUiPages = Math.max(1, Math.ceil(totalFiltered / uiPageSize));
     const pagedCandidates = filteredCandidates.slice(
         (uiPage - 1) * uiPageSize,
         uiPage * uiPageSize
@@ -809,107 +809,107 @@ localStorage.setItem('candidates_last_synced_at', syncedAt.toISOString());
         // eslint-disable-next-line react-hooks/exhaustive-deps
     }, [searchParams]);
 
-  return (
-    <div className="p-8 lg:p-12">
-        <div className="mb-10">
-            <div className="flex flex-col md:flex-row md:items-center justify-between gap-6">
-                <div>
-                    <h1 className="text-3xl font-extrabold text-gray-900 mb-2">
-                        Thông tin ứng viên
-                    </h1>
-                    <p className="text-gray-500 font-medium">
-                        {filteredCandidates.length}/{totalItems || candidates.length} ứng viên
-                    </p>
-                </div>
-
-                <div className="flex flex-wrap items-center gap-3">
-                    <div className="relative">
-                        <i className="fa-solid fa-magnifying-glass absolute left-4 top-1/2 -translate-y-1/2 text-gray-400"></i>
-                        <input
-                            type="text"
-                            placeholder="Tìm kiếm ứng viên..."
-                            className="pl-11 pr-4 py-3 bg-white border border-gray-200 rounded-2xl w-64 focus:ring-2 focus:ring-brand-600/20 focus:border-brand-600 outline-none transition-all"
-                            value={filters.search}
-                            onChange={(e) => handleFilterChange('search', e.target.value)}
-                            onKeyDown={(e) => e.key === 'Enter' && fetchCandidates()}
-                        />
+    return (
+        <div className="p-8 lg:p-12">
+            <div className="mb-10">
+                <div className="flex flex-col md:flex-row md:items-center justify-between gap-6">
+                    <div>
+                        <h1 className="text-3xl font-extrabold text-gray-900 mb-2">
+                            Thông tin ứng viên
+                        </h1>
+                        <p className="text-gray-500 font-medium">
+                            {filteredCandidates.length}/{totalItems || candidates.length} ứng viên
+                        </p>
                     </div>
 
-                    <button
-                        onClick={() => handleSyncGoogleSheet(false)}
-                        disabled={syncingSheet}
-                        className="flex items-center gap-2 px-5 py-3 bg-green-600 text-white font-bold rounded-2xl hover:bg-green-700 disabled:opacity-60 disabled:cursor-not-allowed shadow-lg shadow-green-600/20 transition-all"
-                    >
-                        <i className={`fa-solid ${syncingSheet ? 'fa-spinner fa-spin' : 'fa-rotate'}`}></i>
-                        {syncingSheet ? 'Đang đồng bộ...' : 'Đồng bộ ứng viên'}
-                    </button>
+                    <div className="flex flex-wrap items-center gap-3">
+                        <div className="relative">
+                            <i className="fa-solid fa-magnifying-glass absolute left-4 top-1/2 -translate-y-1/2 text-gray-400"></i>
+                            <input
+                                type="text"
+                                placeholder="Tìm kiếm ứng viên..."
+                                className="pl-11 pr-4 py-3 bg-white border border-gray-200 rounded-2xl w-64 focus:ring-2 focus:ring-brand-600/20 focus:border-brand-600 outline-none transition-all"
+                                value={filters.search}
+                                onChange={(e) => handleFilterChange('search', e.target.value)}
+                                onKeyDown={(e) => e.key === 'Enter' && fetchCandidates()}
+                            />
+                        </div>
 
-                    <button
-                        onClick={() => setIsModalOpen(true)}
-                        className="flex items-center gap-2 px-5 py-3 bg-white border border-gray-200 text-gray-700 font-bold rounded-2xl hover:bg-gray-50 transition-all"
-                    >
-                        <i className="fa-solid fa-sliders"></i>
-                        Customize
-                    </button>
+                        <button
+                            onClick={() => handleSyncGoogleSheet(false)}
+                            disabled={syncingSheet}
+                            className="flex items-center gap-2 px-5 py-3 bg-green-600 text-white font-bold rounded-2xl hover:bg-green-700 disabled:opacity-60 disabled:cursor-not-allowed shadow-lg shadow-green-600/20 transition-all"
+                        >
+                            <i className={`fa-solid ${syncingSheet ? 'fa-spinner fa-spin' : 'fa-rotate'}`}></i>
+                            {syncingSheet ? 'Đang đồng bộ...' : 'Đồng bộ ứng viên'}
+                        </button>
 
-                    <button
-                        onClick={() => {
-                            setIsEditing(false);
-                            setQuickCreateForm({
-                                fullName: '',
-                                email: '',
-                                phone: '',
-                                universitySchool: '',
-                                gender: 'male',
-                                birthday: '',
-                                appliedDate: new Date().toISOString(),
-                                position: '',
-                                level: '',
-                                department: '',
-                                source: '',
-                                status: 'received_cv',
-                                filePath: '',
-                                productLinks: '',
-                                note: '',
-                                gpa: '',
-                                iqTest: '',
-                                techTest: '',
-                                thinkingTest: '',
-                                testOnlineStatus: '',
-                                managerReview: null
-                            });
-                            setIsQuickCreateOpen(true);
-                        }}
-                        className="flex items-center gap-2 px-6 py-3 bg-brand-600 text-white font-bold rounded-2xl hover:bg-brand-700 shadow-lg shadow-brand-600/20 transition-all"
-                    >
-                        <i className="fa-solid fa-plus"></i>
-                        Tạo ứng viên
-                    </button>
+                        <button
+                            onClick={() => setIsModalOpen(true)}
+                            className="flex items-center gap-2 px-5 py-3 bg-white border border-gray-200 text-gray-700 font-bold rounded-2xl hover:bg-gray-50 transition-all"
+                        >
+                            <i className="fa-solid fa-sliders"></i>
+                            Customize
+                        </button>
+
+                        <button
+                            onClick={() => {
+                                setIsEditing(false);
+                                setQuickCreateForm({
+                                    fullName: '',
+                                    email: '',
+                                    phone: '',
+                                    universitySchool: '',
+                                    gender: 'male',
+                                    birthday: '',
+                                    appliedDate: new Date().toISOString(),
+                                    position: '',
+                                    level: '',
+                                    department: '',
+                                    source: '',
+                                    status: 'received_cv',
+                                    filePath: '',
+                                    productLinks: '',
+                                    note: '',
+                                    gpa: '',
+                                    iqTest: '',
+                                    techTest: '',
+                                    thinkingTest: '',
+                                    testOnlineStatus: '',
+                                    managerReview: null
+                                });
+                                setIsQuickCreateOpen(true);
+                            }}
+                            className="flex items-center gap-2 px-6 py-3 bg-brand-600 text-white font-bold rounded-2xl hover:bg-brand-700 shadow-lg shadow-brand-600/20 transition-all"
+                        >
+                            <i className="fa-solid fa-plus"></i>
+                            Tạo ứng viên
+                        </button>
+                    </div>
                 </div>
-            </div>
 
-            {filters.candidateId && (
-                <div className="mt-3 flex items-center gap-2">
-                    <span className="px-3 py-1 bg-brand-50 text-brand-700 text-xs font-bold rounded-lg border border-brand-100 flex items-center gap-1.5 shadow-sm">
-                        Đang lọc theo ID ứng viên: {filters.candidateId}
-                        <button onClick={resetFilters} className="text-red-500 hover:text-red-700 font-black ml-1">✕</button>
+                {filters.candidateId && (
+                    <div className="mt-3 flex items-center gap-2">
+                        <span className="px-3 py-1 bg-brand-50 text-brand-700 text-xs font-bold rounded-lg border border-brand-100 flex items-center gap-1.5 shadow-sm">
+                            Đang lọc theo ID ứng viên: {filters.candidateId}
+                            <button onClick={resetFilters} className="text-red-500 hover:text-red-700 font-black ml-1">✕</button>
+                        </span>
+                    </div>
+                )}
+
+                <div className="mt-3 flex items-center gap-2 text-xs font-semibold text-blue-600">
+                    <i className="fa-solid fa-clock-rotate-left"></i>
+                    <span>
+                        Tự động đồng bộ mỗi 60 phút
+                        {lastSyncedAt && (
+                            <>
+                                {' '}· Lần đồng bộ gần nhất:{' '}
+                                {lastSyncedAt.toLocaleTimeString('vi-VN')} {lastSyncedAt.toLocaleDateString('vi-VN')}
+                            </>
+                        )}
                     </span>
                 </div>
-            )}
-
-            <div className="mt-3 flex items-center gap-2 text-xs font-semibold text-blue-600">
-                <i className="fa-solid fa-clock-rotate-left"></i>
-                <span>
-                    Tự động đồng bộ mỗi 60 phút
-                    {lastSyncedAt && (
-                        <>
-                            {' '}· Lần đồng bộ gần nhất:{' '}
-                            {lastSyncedAt.toLocaleTimeString('vi-VN')} {lastSyncedAt.toLocaleDateString('vi-VN')}
-                        </>
-                    )}
-                </span>
             </div>
-        </div>
 
             {/* Table */}
             <div className="bg-white rounded-[2rem] border border-gray-100 shadow-sm overflow-hidden">
@@ -958,20 +958,20 @@ localStorage.setItem('candidates_last_synced_at', syncedAt.toISOString());
                                         <td className="px-6 py-5 text-sm text-gray-600">{app.source || '—'}</td>
                                         <td className="px-6 py-5 text-center">
                                             <span className={`inline-flex min-w-[112px] items-center justify-center rounded-full border px-3 py-1.5 text-xs font-bold leading-none whitespace-nowrap ${getStatusColor(app.status)}`}>
-                                              {app.pipelineInfo?.name || app.status || '—'}
+                                                {app.pipelineInfo?.name || app.status || '—'}
                                             </span>
                                         </td>
                                         <td className="px-6 py-5 text-sm text-gray-600 text-center">{app.appliedDate ? new Date(app.appliedDate).toLocaleDateString('vi-VN') : '—'}</td>
                                         <td className="px-6 py-5 text-right">
                                             <div className="flex items-center justify-end gap-2">
-                                                <button 
+                                                <button
                                                     onClick={() => setPreviewCV({ url: getCandidateCvUrl(app), name: candidate.fullName })}
                                                     className="w-8 h-8 rounded-lg bg-brand-50 text-brand-600 flex items-center justify-center hover:bg-brand-100 transition-all"
                                                     title="Xem CV"
                                                 >
                                                     <i className="fa-solid fa-eye text-xs"></i>
                                                 </button>
-                                                <button 
+                                                <button
                                                     onClick={() => handleEdit(candidate)}
                                                     className="w-8 h-8 rounded-lg bg-orange-50 text-orange-600 flex items-center justify-center hover:bg-orange-100 transition-all"
                                                     title="Chỉnh sửa"
@@ -1022,8 +1022,8 @@ localStorage.setItem('candidates_last_synced_at', syncedAt.toISOString());
                             Trang {uiPage}/{totalUiPages}
                         </span>
                         {[
-                            { icon: 'fa-angles-left',  action: () => setUiPage(1),            disabled: uiPage === 1, title: 'Trang đầu' },
-                            { icon: 'fa-chevron-left', action: () => setUiPage(p => p - 1),   disabled: uiPage === 1, title: 'Trang trước' },
+                            { icon: 'fa-angles-left', action: () => setUiPage(1), disabled: uiPage === 1, title: 'Trang đầu' },
+                            { icon: 'fa-chevron-left', action: () => setUiPage(p => p - 1), disabled: uiPage === 1, title: 'Trang trước' },
                         ].map(btn => (
                             <button key={btn.icon} onClick={btn.action} disabled={btn.disabled} title={btn.title} style={{
                                 width: 30, height: 30, borderRadius: 8, border: '1px solid #E2E8F0',
@@ -1039,7 +1039,7 @@ localStorage.setItem('candidates_last_synced_at', syncedAt.toISOString());
                         {(() => {
                             const range = [];
                             let start = Math.max(1, uiPage - 2);
-                            let end   = Math.min(totalUiPages, start + 4);
+                            let end = Math.min(totalUiPages, start + 4);
                             if (end - start < 4) start = Math.max(1, end - 4);
                             for (let p = start; p <= end; p++) range.push(p);
                             return range.map(p => (
@@ -1055,8 +1055,8 @@ localStorage.setItem('candidates_last_synced_at', syncedAt.toISOString());
                             ));
                         })()}
                         {[
-                            { icon: 'fa-chevron-right', action: () => setUiPage(p => p + 1),     disabled: uiPage === totalUiPages, title: 'Trang sau' },
-                            { icon: 'fa-angles-right',  action: () => setUiPage(totalUiPages),   disabled: uiPage === totalUiPages, title: 'Trang cuối' },
+                            { icon: 'fa-chevron-right', action: () => setUiPage(p => p + 1), disabled: uiPage === totalUiPages, title: 'Trang sau' },
+                            { icon: 'fa-angles-right', action: () => setUiPage(totalUiPages), disabled: uiPage === totalUiPages, title: 'Trang cuối' },
                         ].map(btn => (
                             <button key={btn.icon} onClick={btn.action} disabled={btn.disabled} title={btn.title} style={{
                                 width: 30, height: 30, borderRadius: 8, border: '1px solid #E2E8F0',
@@ -1085,7 +1085,7 @@ localStorage.setItem('candidates_last_synced_at', syncedAt.toISOString());
                                 </div>
                                 <div>
                                     <h2 className="text-xl font-bold text-gray-900">
-                                        {isEditing ? 'Chỉnh sửa thông tin ứng viên' : 'Thêm ứng viên mới'} 
+                                        {isEditing ? 'Chỉnh sửa thông tin ứng viên' : 'Thêm ứng viên mới'}
                                         {isEditing && <span className="ml-2 text-sm font-medium text-gray-500">#{editingIds.candidateId}</span>}
                                     </h2>
                                     <p className="text-sm text-gray-500 mt-0.5">
@@ -1112,7 +1112,7 @@ localStorage.setItem('candidates_last_synced_at', syncedAt.toISOString());
                             <div className="grid grid-cols-12 gap-8">
                                 {/* Cột trái */}
                                 <div className="col-span-12 lg:col-span-7 space-y-6">
-                                    
+
                                     {/* 1. Thông tin cá nhân */}
                                     <section className="bg-white border border-gray-100 rounded-2xl p-6 shadow-sm">
                                         <h3 className="text-sm font-bold text-blue-600 mb-6 flex items-center gap-2">
@@ -1168,8 +1168,8 @@ localStorage.setItem('candidates_last_synced_at', syncedAt.toISOString());
                                         <div className="grid grid-cols-2 gap-5">
                                             <div className="col-span-2 space-y-1">
                                                 <label className="text-[10px] font-bold text-gray-400 uppercase">Vị trí ứng tuyển *</label>
-                                                <select 
-                                                    value={quickCreateForm.position} 
+                                                <select
+                                                    value={quickCreateForm.position}
                                                     onChange={(e) => {
                                                         const val = e.target.value;
                                                         const order = positions.find(p => String(p.id) === String(val));
@@ -1182,7 +1182,7 @@ localStorage.setItem('candidates_last_synced_at', syncedAt.toISOString());
                                                         } else {
                                                             handleQuickCreateChange('position', val);
                                                         }
-                                                    }} 
+                                                    }}
                                                     className="w-full px-4 py-2.5 bg-gray-50 border border-gray-200 rounded-xl focus:bg-white focus:border-brand-600 outline-none transition-all text-sm"
                                                 >
                                                     <option value="">Chọn vị trí (từ Order)</option>
@@ -1312,19 +1312,18 @@ localStorage.setItem('candidates_last_synced_at', syncedAt.toISOString());
                                                                     </h4>
                                                                     <div className="text-[11px] text-gray-500 font-medium flex items-center gap-2 mt-1">
                                                                         <span className="flex items-center gap-1">
-                                                                            <i className="fa-regular fa-clock"></i> 
+                                                                            <i className="fa-regular fa-clock"></i>
                                                                             {quickCreateForm.managerReview.reviewedAt ? new Date(quickCreateForm.managerReview.reviewedAt).toLocaleDateString('vi-VN') : '—'}
                                                                         </span>
                                                                     </div>
                                                                 </div>
-                                                                <span className={`px-2.5 py-1 text-[10px] font-bold uppercase rounded-lg border ${
-                                                                    quickCreateForm.managerReview.status === 'APPROVE' ? 'bg-emerald-50 text-emerald-600 border-emerald-100' :
-                                                                    quickCreateForm.managerReview.status === 'REJECT' ? 'bg-red-50 text-red-600 border-red-100' :
-                                                                    'bg-amber-50 text-amber-600 border-amber-100'
-                                                                }`}>
+                                                                <span className={`px-2.5 py-1 text-[10px] font-bold uppercase rounded-lg border ${quickCreateForm.managerReview.status === 'APPROVE' ? 'bg-emerald-50 text-emerald-600 border-emerald-100' :
+                                                                        quickCreateForm.managerReview.status === 'REJECT' ? 'bg-red-50 text-red-600 border-red-100' :
+                                                                            'bg-amber-50 text-amber-600 border-amber-100'
+                                                                    }`}>
                                                                     {quickCreateForm.managerReview.status === 'APPROVE' ? 'Đã duyệt' :
-                                                                     quickCreateForm.managerReview.status === 'REJECT' ? 'Đã loại' :
-                                                                     'Chờ đánh giá'}
+                                                                        quickCreateForm.managerReview.status === 'REJECT' ? 'Đã loại' :
+                                                                            'Chờ đánh giá'}
                                                                 </span>
                                                             </div>
                                                             <div className="text-xs text-gray-600 mt-3 p-2.5 bg-white rounded-lg border border-gray-100">
@@ -1371,11 +1370,10 @@ localStorage.setItem('candidates_last_synced_at', syncedAt.toISOString());
                                                                             <span>{history.endTime ? formatDateTime(history.endTime) : 'Đang xử lý'}</span>
                                                                         </div>
                                                                     </div>
-                                                                    <span className={`px-2.5 py-1 text-[10px] font-bold uppercase rounded-lg border ${
-                                                                        history.result === 'pass' ? 'bg-emerald-50 text-emerald-600 border-emerald-100' :
-                                                                        history.result === 'fail' ? 'bg-red-50 text-red-600 border-red-100' :
-                                                                        'bg-amber-50 text-amber-600 border-amber-100'
-                                                                    }`}>
+                                                                    <span className={`px-2.5 py-1 text-[10px] font-bold uppercase rounded-lg border ${history.result === 'pass' ? 'bg-emerald-50 text-emerald-600 border-emerald-100' :
+                                                                            history.result === 'fail' ? 'bg-red-50 text-red-600 border-red-100' :
+                                                                                'bg-amber-50 text-amber-600 border-amber-100'
+                                                                        }`}>
                                                                         {RESULT_LABELS[history.result] || history.result || 'Đang xử lý'}
                                                                     </span>
                                                                 </div>
@@ -1414,7 +1412,7 @@ localStorage.setItem('candidates_last_synced_at', syncedAt.toISOString());
                                                 </a>
                                             )}
                                         </div>
-                                        
+
                                         <div className="space-y-4 mb-4">
                                             <div className="space-y-1">
                                                 <label className="text-[10px] font-bold text-gray-400 uppercase">Link CV *</label>
@@ -1431,12 +1429,12 @@ localStorage.setItem('candidates_last_synced_at', syncedAt.toISOString());
                                                 </div>
                                             </div>
                                         </div>
-                                        
+
                                         <div className="flex-1 bg-slate-50 rounded-xl border border-gray-200 relative overflow-hidden mt-2">
                                             {getDrivePreviewUrl(quickCreateForm.filePath) ? (
-                                                <iframe 
-                                                    src={getDrivePreviewUrl(quickCreateForm.filePath)} 
-                                                    className="absolute inset-0 w-full h-full border-none" 
+                                                <iframe
+                                                    src={getDrivePreviewUrl(quickCreateForm.filePath)}
+                                                    className="absolute inset-0 w-full h-full border-none"
                                                     title="CV Preview"
                                                 ></iframe>
                                             ) : (
@@ -1461,7 +1459,7 @@ localStorage.setItem('candidates_last_synced_at', syncedAt.toISOString());
                 </div>
             )}
 
-{/* Standalone CV Preview Modal */}
+            {/* Standalone CV Preview Modal */}
             {previewCV && (
                 <div className="fixed inset-0 z-[60] flex items-center justify-center p-4">
                     <div className="absolute inset-0 bg-gray-900/60 backdrop-blur-md" onClick={() => setPreviewCV(null)}></div>
@@ -1532,14 +1530,14 @@ localStorage.setItem('candidates_last_synced_at', syncedAt.toISOString());
                                 <h3 className="text-[10px] font-bold text-brand-600 uppercase tracking-widest mb-6 flex items-center gap-2">
                                     THÔNG TIN TUYỂN DỤNG
                                 </h3>
-                                
+
                                 <div className="mb-8 space-y-4">
                                     <div className="flex items-center gap-2 text-[11px] font-bold text-brand-600 uppercase">
                                         <i className="fa-regular fa-calendar"></i>
                                         KHOẢNG THỜI GIAN ỨNG TUYỂN (APPLY DATE RANGE)
                                     </div>
                                     <div className="flex items-center gap-3">
-                                        <RangePicker 
+                                        <RangePicker
                                             className="h-12 rounded-xl border-gray-300 w-full"
                                             placeholder={['Từ ngày', 'Đến ngày']}
                                             format="DD/MM/YYYY"
@@ -1569,19 +1567,19 @@ localStorage.setItem('candidates_last_synced_at', syncedAt.toISOString());
                                         <i className="fa-solid fa-diagram-project"></i>
                                         CHI TIẾT PIPELINE
                                     </div>
-                                    
+
                                     <div className="p-6 bg-gray-50/50 border border-gray-200 rounded-[2rem] space-y-6">
                                         {filters.pipelines.map((p, idx) => (
                                             <div key={idx} className="grid grid-cols-2 gap-8 relative items-end">
                                                 <div className="space-y-2">
                                                     <label className="text-[10px] font-bold text-gray-400 uppercase">VÒNG TUYỂN DỤNG</label>
-                                                    <Select 
+                                                    <Select
                                                         placeholder="Chọn vòng"
                                                         className="w-full h-12"
                                                         value={p.code}
                                                         onChange={(val) => updatePipeline(idx, 'code', val)}
-                                                        options={pipelineStages.map(s => ({ 
-                                                            value: s.code, 
+                                                        options={pipelineStages.map(s => ({
+                                                            value: s.code,
                                                             label: s.name,
                                                             disabled: filters.pipelines.some((other, oIdx) => oIdx !== idx && other.code === s.code)
                                                         }))}
@@ -1589,7 +1587,7 @@ localStorage.setItem('candidates_last_synced_at', syncedAt.toISOString());
                                                 </div>
                                                 <div className="space-y-2 pr-10 relative">
                                                     <label className="text-[10px] font-bold text-gray-400 uppercase">KẾT QUẢ</label>
-                                                    <Select 
+                                                    <Select
                                                         mode="multiple"
                                                         maxTagCount={2}
                                                         placeholder="Tất cả"
@@ -1599,8 +1597,8 @@ localStorage.setItem('candidates_last_synced_at', syncedAt.toISOString());
                                                         options={filterOptions.pipelineResults}
                                                     />
                                                     {filters.pipelines.length > 1 && (
-                                                        <button 
-                                                            onClick={() => removePipeline(idx)} 
+                                                        <button
+                                                            onClick={() => removePipeline(idx)}
                                                             className="absolute right-0 top-1/2 translate-y-[-5px] w-8 h-8 flex items-center justify-center text-red-400 hover:text-red-600 transition-colors"
                                                         >
                                                             <i className="fa-solid fa-trash-can"></i>
@@ -1609,9 +1607,9 @@ localStorage.setItem('candidates_last_synced_at', syncedAt.toISOString());
                                                 </div>
                                             </div>
                                         ))}
-                                        
-                                        <button 
-                                            onClick={addPipeline} 
+
+                                        <button
+                                            onClick={addPipeline}
                                             className="text-brand-600 text-[11px] font-bold uppercase flex items-center gap-2 hover:opacity-70 transition-opacity"
                                         >
                                             <i className="fa-solid fa-plus"></i> THÊM VÒNG TUYỂN DỤNG

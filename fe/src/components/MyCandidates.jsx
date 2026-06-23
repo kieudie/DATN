@@ -37,11 +37,11 @@ const getTabForCandidate = (item) => {
 };
 
 const getCvUrl = (row, application) => {
-    return application?.cvs?.[0]?.filePath || 
-           row?.cv_file_path || 
-           row?.cvFilePath || 
-           row?.filePath || 
-           row?.cvs?.[0]?.filePath || '';
+    return application?.cvs?.[0]?.filePath ||
+        row?.cv_file_path ||
+        row?.cvFilePath ||
+        row?.filePath ||
+        row?.cvs?.[0]?.filePath || '';
 };
 
 const toGoogleDrivePreviewUrl = (url) => {
@@ -92,7 +92,7 @@ export default function MyCandidates() {
 
     const [search, setSearch] = useState('');
     const [appliedSearch, setAppliedSearch] = useState('');
-    
+
     const [activeTab, setActiveTab] = useState(TABS.NEED_REVIEW);
 
     const [modalOpen, setModalOpen] = useState(false);
@@ -162,7 +162,7 @@ export default function MyCandidates() {
     const handleSearch = (e) => {
         if (e.key === 'Enter') setAppliedSearch(search);
     };
-    
+
     const refresh = () => setAppliedSearch(search);
 
     const openModal = async (candidate) => {
@@ -180,13 +180,13 @@ export default function MyCandidates() {
     };
 
     // --- Derived Data ---
-    const clientData = appliedSearch 
-        ? data.filter(i => 
-            (i.full_name || '').toLowerCase().includes(appliedSearch.toLowerCase()) || 
+    const clientData = appliedSearch
+        ? data.filter(i =>
+            (i.full_name || '').toLowerCase().includes(appliedSearch.toLowerCase()) ||
             (i.candidate_email || '').toLowerCase().includes(appliedSearch.toLowerCase()) ||
             (i.phone || '').includes(appliedSearch) ||
             (i.position || '').toLowerCase().includes(appliedSearch.toLowerCase())
-          )
+        )
         : data;
 
     const stats = {
@@ -216,12 +216,12 @@ export default function MyCandidates() {
                         <p className="text-sm text-slate-500">Danh sách ứng viên được phân công đánh giá</p>
                     </div>
                 </div>
-                
+
                 <div className="flex items-center gap-2">
                     <div className="relative w-full md:w-80">
                         <i className="fa-solid fa-magnifying-glass absolute left-3 top-1/2 -translate-y-1/2 text-slate-400 text-sm"></i>
-                        <input 
-                            type="text" 
+                        <input
+                            type="text"
                             value={search}
                             onChange={e => setSearch(e.target.value)}
                             onKeyDown={handleSearch}
@@ -237,7 +237,7 @@ export default function MyCandidates() {
 
             {/* Stats Cards */}
             <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
-                <button 
+                <button
                     onClick={() => setActiveTab(TABS.NEED_REVIEW)}
                     className={`text-left p-5 rounded-xl border shadow-sm relative overflow-hidden transition-all duration-200 group ${activeTab === TABS.NEED_REVIEW ? 'bg-blue-50 border-blue-400 ring-2 ring-blue-100' : 'bg-white border-slate-200 hover:border-blue-300 hover:bg-slate-50'}`}
                 >
@@ -251,8 +251,8 @@ export default function MyCandidates() {
                         </div>
                     </div>
                 </button>
-                
-                <button 
+
+                <button
                     onClick={() => setActiveTab(TABS.PENDING)}
                     className={`text-left p-5 rounded-xl border shadow-sm flex justify-between items-start transition-all duration-200 ${activeTab === TABS.PENDING ? 'bg-amber-50 border-amber-400 ring-2 ring-amber-100' : 'bg-white border-slate-200 hover:border-amber-300 hover:bg-slate-50'}`}
                 >
@@ -265,7 +265,7 @@ export default function MyCandidates() {
                     </div>
                 </button>
 
-                <button 
+                <button
                     onClick={() => setActiveTab(TABS.APPROVED)}
                     className={`text-left p-5 rounded-xl border shadow-sm flex justify-between items-start transition-all duration-200 ${activeTab === TABS.APPROVED ? 'bg-emerald-50 border-emerald-400 ring-2 ring-emerald-100' : 'bg-white border-slate-200 hover:border-emerald-300 hover:bg-slate-50'}`}
                 >
@@ -278,7 +278,7 @@ export default function MyCandidates() {
                     </div>
                 </button>
 
-                <button 
+                <button
                     onClick={() => setActiveTab(TABS.REJECTED)}
                     className={`text-left p-5 rounded-xl border shadow-sm flex justify-between items-start transition-all duration-200 ${activeTab === TABS.REJECTED ? 'bg-rose-50 border-rose-400 ring-2 ring-rose-100' : 'bg-white border-slate-200 hover:border-rose-300 hover:bg-slate-50'}`}
                 >
@@ -340,7 +340,7 @@ export default function MyCandidates() {
                                         {formatStatusLabel(item.status)}
                                     </span>
                                 </div>
-                                
+
                                 <div className="space-y-1.5 mb-4 text-xs text-slate-600 flex-1">
                                     {item.phone && <div className="flex items-center gap-2"><i className="fa-solid fa-phone w-3 text-slate-400"></i> {item.phone}</div>}
                                     <div className="flex items-center gap-2"><i className="fa-solid fa-briefcase w-3 text-slate-400"></i> {getPositionText(item, null)} {item.department ? ` • ${item.department}` : ''}</div>
@@ -389,7 +389,7 @@ export default function MyCandidates() {
                                 <i className="fa-solid fa-xmark"></i>
                             </button>
                         </div>
-                        
+
                         {/* Body 2 columns */}
                         <div className="flex flex-col md:flex-row flex-1 overflow-hidden">
                             {/* Left Col: Info & Form */}
@@ -411,7 +411,7 @@ export default function MyCandidates() {
                                         <div><span className="text-slate-500 block text-xs mb-0.5">Test IQ</span> <span className="font-medium text-slate-800">{displayValue(selectedCandidate.iq_test || detailApp?.iqTest)}</span></div>
                                         <div><span className="text-slate-500 block text-xs mb-0.5">Test Tư duy</span> <span className="font-medium text-slate-800">{displayValue(selectedCandidate.thinking_test || detailApp?.thinkingTest)}</span></div>
                                         <div className="col-span-2"><span className="text-slate-500 block text-xs mb-0.5">Test Chuyên môn</span> <span className="font-medium text-slate-800">{displayValue(selectedCandidate.tech_test || detailApp?.techTest)}</span></div>
-                                        <div className="col-span-2"><span className="text-slate-500 block text-xs mb-0.5">Link sản phẩm</span> 
+                                        <div className="col-span-2"><span className="text-slate-500 block text-xs mb-0.5">Link sản phẩm</span>
                                             {selectedCandidate.cv_product_links || detailApp?.cvs?.[0]?.productLinks ? (
                                                 <a href={selectedCandidate.cv_product_links || detailApp?.cvs?.[0]?.productLinks} target="_blank" rel="noreferrer" className="text-blue-600 hover:underline font-medium break-all">
                                                     {selectedCandidate.cv_product_links || detailApp?.cvs?.[0]?.productLinks}
@@ -455,7 +455,7 @@ export default function MyCandidates() {
                                     <h3 className="text-sm font-bold text-slate-800 uppercase tracking-wide mb-3 flex items-center gap-2">
                                         <i className="fa-solid fa-pen-to-square text-blue-600"></i> Đánh giá ứng viên
                                     </h3>
-                                    
+
                                     <div className="space-y-3 mb-4">
                                         <label className={`flex p-3 border rounded-xl cursor-pointer transition-all ${reviewStatus === 'APPROVE' ? 'bg-emerald-50 border-emerald-500 ring-1 ring-emerald-500' : 'hover:bg-slate-50 border-slate-200'}`}>
                                             <input type="radio" name="review_status" value="APPROVE" checked={reviewStatus === 'APPROVE'} onChange={() => setReviewStatus('APPROVE')} className="mt-1" />
@@ -482,7 +482,7 @@ export default function MyCandidates() {
 
                                     <div className="mb-4">
                                         <label className="block text-sm font-semibold text-slate-700 mb-1.5">Ghi chú đánh giá</label>
-                                        <textarea 
+                                        <textarea
                                             value={reviewNote}
                                             onChange={e => setReviewNote(e.target.value)}
                                             rows={3}

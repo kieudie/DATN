@@ -636,7 +636,28 @@ const RecruitmentPipeline = () => {
                     || detailData.applications?.[0] 
                     || {};
                 const cv = app.cvs?.[0] || {};
-                const review = managerReviewMapByApplicationId[appId] || null;
+                
+                const pipelineHistory = app.pipelineHistory || candidate.pipelineHistory || [];
+                
+                let review = managerReviewMapByApplicationId[appId] 
+                    || app.managerReviews?.[0] 
+                    || candidate.managerReviews?.[0] 
+                    || null;
+
+                if (!review && pipelineHistory.length > 0) {
+                    const deptReviewHistory = pipelineHistory.find(h => 
+                        h.recruitmentPipelineCode === 'department_review' || 
+                        h.recruitmentPipelineCode === 'Bộ phận chọn hồ sơ'
+                    );
+                    if (deptReviewHistory && deptReviewHistory.note) {
+                        review = {
+                            reviewerName: deptReviewHistory.createdBy || 'Hệ thống',
+                            status: deptReviewHistory.result === 'fail' ? 'REJECT' : (deptReviewHistory.result === 'pass' ? 'APPROVE' : 'PENDING'),
+                            note: deptReviewHistory.note,
+                            reviewedAt: deptReviewHistory.createdAt || deptReviewHistory.startTime || deptReviewHistory.endTime || new Date().toISOString()
+                        };
+                    }
+                }
 
                 const fullCandidateInfo = {
                     ...candidate,

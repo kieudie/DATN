@@ -75,7 +75,7 @@ const getManagerReviewStatusRaw = (item) => {
 const getManagerReviewStatusMapped = (item) => {
     const s = getManagerReviewStatusRaw(item);
     if (s === 'PENDING') return 'Chờ đánh giá';
-    if (s === 'APPROVE' || s === 'APPROVED') return 'Đã duyệt';
+    if (s === 'APPROVE' || s === 'APPROVED') return 'Đã Tuyển';
     if (s === 'REJECT' || s === 'REJECTED') return 'Đã loại';
     return s || '—';
 };
@@ -140,14 +140,14 @@ const getCandidateCvUrl = (item) => {
 const ManagerCandidateData = () => {
     const [candidates, setCandidates] = useState([]);
     const [loading, setLoading] = useState(true);
-    
+
     const [searchText, setSearchText] = useState('');
     const [statusFilter, setStatusFilter] = useState('ALL');
     const [positionFilter, setPositionFilter] = useState('ALL');
-    
+
     const [uiPage, setUiPage] = useState(1);
     const [uiPageSize, setUiPageSize] = useState(10);
-    
+
     const [isDetailModalOpen, setIsDetailModalOpen] = useState(false);
     const [selectedCandidate, setSelectedCandidate] = useState(null);
 
@@ -170,19 +170,19 @@ const ManagerCandidateData = () => {
                     if (Array.isArray(searchTarget[key])) {
                         list = [...list, ...searchTarget[key]];
                     } else if (searchTarget[key] && typeof searchTarget[key] === 'object') {
-                         Object.keys(searchTarget[key]).forEach(subKey => {
-                             if (Array.isArray(searchTarget[key][subKey])) {
-                                 list = [...list, ...searchTarget[key][subKey]];
-                             }
-                         });
+                        Object.keys(searchTarget[key]).forEach(subKey => {
+                            if (Array.isArray(searchTarget[key][subKey])) {
+                                list = [...list, ...searchTarget[key][subKey]];
+                            }
+                        });
                     }
                 });
             }
         }
-        
+
         return list.filter(item => {
             if (!item) return false;
-            
+
             // Lọc bỏ manager objects lẫn vào candidates
             const email = getEmail(item);
             if (email && email.includes('manager.') && email.includes('@cggamestudio.com')) {
@@ -237,14 +237,14 @@ const ManagerCandidateData = () => {
 
             const result = await response.json();
             const rawList = parseCandidateList(result);
-            
+
             const uniqueMap = new Map();
             rawList.forEach(cand => {
                 const appId = cand.applicationId || cand.application_id || getRawApplication(cand).id;
                 const email = getEmail(cand);
                 const phone = getPhone(cand);
                 const candId = cand.id || cand.candidateId || getRawCandidate(cand).id;
-                
+
                 let key = '';
                 if (appId) {
                     key = `app_${appId}`;
@@ -255,7 +255,7 @@ const ManagerCandidateData = () => {
                 } else {
                     key = Math.random().toString();
                 }
-                
+
                 if (!uniqueMap.has(key)) {
                     uniqueMap.set(key, cand);
                 }
@@ -283,7 +283,7 @@ const ManagerCandidateData = () => {
 
     const filteredCandidates = useMemo(() => {
         const keyword = searchText.trim().toLowerCase();
-        
+
         return candidates.filter(cand => {
             const name = getFullName(cand);
             const email = getEmail(cand);
@@ -294,11 +294,11 @@ const ManagerCandidateData = () => {
             const revStatus = getManagerReviewStatusRaw(cand);
 
             const textMatch = !keyword || [name, email, phone, positionLabel, level, dept].filter(Boolean).join(' ').toLowerCase().includes(keyword);
-            
-            const statusMatch = statusFilter === 'ALL' || revStatus === statusFilter || 
-                               (statusFilter === 'APPROVE' && revStatus === 'APPROVED') || 
-                               (statusFilter === 'REJECT' && revStatus === 'REJECTED');
-            
+
+            const statusMatch = statusFilter === 'ALL' || revStatus === statusFilter ||
+                (statusFilter === 'APPROVE' && revStatus === 'APPROVED') ||
+                (statusFilter === 'REJECT' && revStatus === 'REJECTED');
+
             const positionMatch = positionFilter === 'ALL' || positionLabel === positionFilter;
 
             return textMatch && statusMatch && positionMatch;
@@ -351,22 +351,22 @@ const ManagerCandidateData = () => {
                     />
                 </div>
                 <div className="flex items-center gap-3">
-                    <Select 
-                        value={positionFilter} 
-                        onChange={setPositionFilter} 
-                        size="large" 
+                    <Select
+                        value={positionFilter}
+                        onChange={setPositionFilter}
+                        size="large"
                         className="w-[220px]"
                         options={positionOptions.map(p => ({ label: p === 'ALL' ? 'Tất cả vị trí' : p, value: p }))}
                     />
-                    <Select 
-                        value={statusFilter} 
-                        onChange={setStatusFilter} 
-                        size="large" 
+                    <Select
+                        value={statusFilter}
+                        onChange={setStatusFilter}
+                        size="large"
                         className="w-[200px]"
                         options={[
                             { label: 'Tất cả trạng thái', value: 'ALL' },
                             { label: 'Chờ đánh giá', value: 'PENDING' },
-                            { label: 'Đã duyệt', value: 'APPROVE' },
+                            { label: 'Đã Tuyển', value: 'APPROVE' },
                             { label: 'Đã loại', value: 'REJECT' },
                         ]}
                     />
@@ -438,7 +438,7 @@ const ManagerCandidateData = () => {
                                         </td>
                                         <td className="px-6 py-5 text-right">
                                             <div className="flex items-center justify-end gap-2">
-                                                <button 
+                                                <button
                                                     onClick={() => openDetail(cand)}
                                                     className="w-8 h-8 rounded-lg bg-orange-50 text-orange-600 flex items-center justify-center hover:bg-orange-100 transition-all"
                                                     title="Xem chi tiết"
@@ -500,7 +500,7 @@ const ManagerCandidateData = () => {
                 const rawCandidate = getRawCandidate(cand);
                 const rawApplication = getRawApplication(cand);
                 const rawReview = getRawReview(cand);
-                
+
                 return (
                     <div className="fixed inset-0 z-50 flex items-center justify-end">
                         <div className="absolute inset-0 bg-gray-900/40 backdrop-blur-sm" onClick={() => setIsDetailModalOpen(false)}></div>
@@ -527,7 +527,7 @@ const ManagerCandidateData = () => {
                                 <div className="grid grid-cols-12 gap-8">
                                     {/* Cột trái */}
                                     <div className="col-span-12 lg:col-span-7 space-y-6">
-                                        
+
                                         {/* 1. Thông tin cá nhân */}
                                         <section className="bg-white border border-gray-100 rounded-2xl p-6 shadow-sm">
                                             <h3 className="text-sm font-bold text-blue-600 mb-6 flex items-center gap-2">
@@ -630,16 +630,15 @@ const ManagerCandidateData = () => {
                                                                     </h4>
                                                                     <div className="text-[11px] text-gray-500 font-medium flex items-center gap-2 mt-1">
                                                                         <span className="flex items-center gap-1">
-                                                                            <i className="fa-regular fa-clock"></i> 
+                                                                            <i className="fa-regular fa-clock"></i>
                                                                             {rawReview.reviewedAt ? new Date(rawReview.reviewedAt).toLocaleDateString('vi-VN') : '—'}
                                                                         </span>
                                                                     </div>
                                                                 </div>
-                                                                <span className={`px-2.5 py-1 text-[10px] font-bold uppercase rounded-lg border ${
-                                                                    reviewStatusRaw === 'APPROVE' || reviewStatusRaw === 'APPROVED' ? 'bg-emerald-50 text-emerald-600 border-emerald-100' :
+                                                                <span className={`px-2.5 py-1 text-[10px] font-bold uppercase rounded-lg border ${reviewStatusRaw === 'APPROVE' || reviewStatusRaw === 'APPROVED' ? 'bg-emerald-50 text-emerald-600 border-emerald-100' :
                                                                     reviewStatusRaw === 'REJECT' || reviewStatusRaw === 'REJECTED' ? 'bg-red-50 text-red-600 border-red-100' :
-                                                                    'bg-amber-50 text-amber-600 border-amber-100'
-                                                                }`}>
+                                                                        'bg-amber-50 text-amber-600 border-amber-100'
+                                                                    }`}>
                                                                     {getManagerReviewStatusMapped(cand)}
                                                                 </span>
                                                             </div>
@@ -669,12 +668,12 @@ const ManagerCandidateData = () => {
                                                     </a>
                                                 )}
                                             </div>
-                                            
+
                                             <div className="flex-1 bg-slate-50 rounded-xl border border-gray-200 relative overflow-hidden mt-2">
                                                 {getDrivePreviewUrl(cvUrl) ? (
-                                                    <iframe 
-                                                        src={getDrivePreviewUrl(cvUrl)} 
-                                                        className="absolute inset-0 w-full h-full border-none" 
+                                                    <iframe
+                                                        src={getDrivePreviewUrl(cvUrl)}
+                                                        className="absolute inset-0 w-full h-full border-none"
                                                         title="CV Preview"
                                                     ></iframe>
                                                 ) : cvUrl ? (
