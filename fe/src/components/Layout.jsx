@@ -319,7 +319,11 @@ const Layout = ({ children }) => {
                         <div className="lyt-header-date" style={{ fontWeight: 600, display: 'flex', alignItems: 'center', gap: '8px', background: '#EEF2FF', color: '#4F46E5', padding: '6px 16px', borderRadius: '9999px', fontSize: '14px', border: '1px solid #C7D2FE' }}>
                             <i className="fa-regular fa-calendar"></i>
                             <span>
-                                Thứ 3, 16/6/2026
+                                {(() => {
+                                    const days = ['Chủ nhật', 'Thứ 2', 'Thứ 3', 'Thứ 4', 'Thứ 5', 'Thứ 6', 'Thứ 7'];
+                                    const now = new Date();
+                                    return `${days[now.getDay()]}, ${now.getDate()}/${now.getMonth() + 1}/${now.getFullYear()}`;
+                                })()}
                             </span>
                         </div>
 

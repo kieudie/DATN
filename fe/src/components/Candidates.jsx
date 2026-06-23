@@ -555,6 +555,16 @@ localStorage.setItem('candidates_last_synced_at', syncedAt.toISOString());
     };
 
     const submitQuickCreate = async () => {
+        const normalizeOptional = (value) => {
+            if (value === "" || value === null || value === undefined) return undefined;
+            return value;
+        };
+
+        if (!quickCreateForm.email || quickCreateForm.email.trim() === '') {
+            message.error('Vui lòng nhập email hợp lệ');
+            return;
+        }
+
         const token = localStorage.getItem('access_token');
         try {
             if (isEditing) {
@@ -589,7 +599,7 @@ localStorage.setItem('candidates_last_synced_at', syncedAt.toISOString());
                         iqTest: quickCreateForm.iqTest,
                         techTest: quickCreateForm.techTest,
                         thinkingTest: quickCreateForm.thinkingTest,
-                        testOnlineStatus: quickCreateForm.testOnlineStatus
+                        testOnlineStatus: normalizeOptional(quickCreateForm.testOnlineStatus)
                     })
                 });
 
@@ -602,10 +612,15 @@ localStorage.setItem('candidates_last_synced_at', syncedAt.toISOString());
                 }
             } else {
                 // Create New
+                const payload = {
+                    ...quickCreateForm,
+                    testOnlineStatus: normalizeOptional(quickCreateForm.testOnlineStatus)
+                };
+
                 const response = await fetch('http://localhost:3000/api/recruitment/candidate', {
                     method: 'POST',
                     headers: { 'Authorization': `Bearer ${token}`, 'Content-Type': 'application/json' },
-                    body: JSON.stringify(quickCreateForm)
+                    body: JSON.stringify(payload)
                 });
                 if (response.ok) {
                     message.success('Thêm ứng viên thành công!');

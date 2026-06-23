@@ -486,6 +486,16 @@ const RecruitmentPipeline = () => {
     const handleQuickReviewChange = (name, value) => setQuickReviewForm(prev => ({ ...prev, [name]: value }));
 
     const submitQuickReview = async () => {
+        const normalizeOptional = (value) => {
+            if (value === "" || value === null || value === undefined) return undefined;
+            return value;
+        };
+
+        if (!quickReviewForm.email || quickReviewForm.email.trim() === '') {
+            message.error('Vui lòng nhập email hợp lệ');
+            return;
+        }
+
         const token = localStorage.getItem('access_token');
         try {
             const candRes = await fetch(`${API_BASE}/candidate/${editingIds.candidateId}`, {
@@ -508,7 +518,7 @@ const RecruitmentPipeline = () => {
                     productLinks: quickReviewForm.productLinks, note: quickReviewForm.note,
                     gpa: quickReviewForm.gpa, iqTest: quickReviewForm.iqTest,
                     techTest: quickReviewForm.techTest, thinkingTest: quickReviewForm.thinkingTest,
-                    testOnlineStatus: quickReviewForm.testOnlineStatus
+                    testOnlineStatus: normalizeOptional(quickReviewForm.testOnlineStatus)
                 })
             });
 
@@ -539,7 +549,7 @@ const RecruitmentPipeline = () => {
     const [onboardingDate, setOnboardingDate] = useState('');
     const [sendEmail, setSendEmail] = useState(true);
     const [testType, setTestType] = useState('iq');
-    const [testLink, setTestLink] = useState('https://rocketstudio.game/tests/iq-test');
+    const [testLink, setTestLink] = useState('https://docs.google.com/forms/d/1W7MjtEGNE7jvmTL6ov_EAAyduOc6eakk5SrARw3qnN0/edit?hl=vi');
     const [deadline, setDeadline] = useState('3 ngày từ khi nhận email');
     const [executeAt, setExecuteAt] = useState('');
     const [note1, setNote1] = useState('');
@@ -652,17 +662,17 @@ const RecruitmentPipeline = () => {
 
                 setEditingIds({ candidateId: detailData.id, applicationId: getCandidateApplicationId(app) || app.id });
                 setQuickReviewForm({
-                    fullName: detailData.fullName || '',
-                    email: detailData.email || '',
-                    phone: detailData.phone || '',
-                    universitySchool: detailData.universitySchool || '',
-                    gender: detailData.gender || 'male',
-                    birthday: detailData.birthday || '',
-                    appliedDate: app.appliedDate || new Date().toISOString(),
-                    position: app.position || '',
-                    level: app.level || '',
-                    department: app.department || '',
-                    source: app.source || '',
+                    fullName: detailData.fullName || candidate.fullName || '',
+                    email: detailData.email || candidate.email || '',
+                    phone: detailData.phone || candidate.phone || '',
+                    universitySchool: detailData.universitySchool || candidate.universitySchool || candidate.university_school || candidate.school || '',
+                    gender: detailData.gender || candidate.gender || 'male',
+                    birthday: detailData.birthday || candidate.birthday || '',
+                    appliedDate: app.appliedDate || candidate.appliedDate || new Date().toISOString(),
+                    position: app.position || candidate.position || '',
+                    level: app.level || candidate.level || '',
+                    department: app.department || candidate.department || '',
+                    source: app.source || candidate.source || candidate.recruitmentSource || candidate.recruitment_source || '',
                     status: app.status || 'received_cv',
                     filePath: cv.filePath || '',
                     productLinks: cv.productLinks || '',
@@ -726,7 +736,7 @@ const RecruitmentPipeline = () => {
         setOnboardingDate('');
         setSendEmail(true);
         setTestType('iq');
-        setTestLink('https://rocketstudio.game/tests/iq-test');
+        setTestLink('https://docs.google.com/forms/d/1W7MjtEGNE7jvmTL6ov_EAAyduOc6eakk5SrARw3qnN0/edit?hl=vi');
         setDeadline('3 ngày từ khi nhận email');
         setExecuteAt('');
         setNote1('');
@@ -1562,6 +1572,9 @@ const RecruitmentPipeline = () => {
                                                         <select value={quickReviewForm.universitySchool} onChange={(e) => handleQuickReviewChange('universitySchool', e.target.value)} className="w-full px-4 py-2.5 bg-gray-50 border border-gray-200 rounded-xl focus:bg-white focus:border-blue-600 outline-none transition-all text-sm appearance-none cursor-pointer">
                                                             <option value="">Chọn trường</option>
                                                             {filterOptions.schools.map(s => <option key={s} value={s}>{s}</option>)}
+                                                            {quickReviewForm.universitySchool && !filterOptions.schools.includes(quickReviewForm.universitySchool) && (
+                                                                <option value={quickReviewForm.universitySchool}>{quickReviewForm.universitySchool}</option>
+                                                            )}
                                                         </select>
                                                     </div>
                                                     <div className="col-span-2 md:col-span-1 space-y-1">
@@ -1646,6 +1659,9 @@ const RecruitmentPipeline = () => {
                                                         <select value={quickReviewForm.source} onChange={(e) => handleQuickReviewChange('source', e.target.value)} className="w-full px-4 py-2.5 bg-gray-50 border border-gray-200 rounded-xl focus:bg-white focus:border-blue-600 outline-none transition-all text-sm">
                                                             <option value="">Chọn nguồn</option>
                                                             {filterOptions.sources.map(s => <option key={s} value={s}>{s}</option>)}
+                                                            {quickReviewForm.source && !filterOptions.sources.includes(quickReviewForm.source) && (
+                                                                <option value={quickReviewForm.source}>{quickReviewForm.source}</option>
+                                                            )}
                                                         </select>
                                                     </div>
                                                 </div>
