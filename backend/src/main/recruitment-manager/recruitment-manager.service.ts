@@ -489,7 +489,7 @@ const queryBuilder = this.dataSource
     "cv",
     "cv.application_id = app.id",
   )
-.innerJoin(
+.leftJoin(
   "candidate_pipeline",
   "pipeline",
   "pipeline.application_id = app.id AND pipeline.candidate_id = app.candidate_id AND pipeline.end_time IS NULL",
@@ -1134,6 +1134,7 @@ categorizeCandidateByReviewStatus(
           "o.hr_level AS order_hr_level",
           "cv.file_path AS cv_file_path",
           "cv.product_links AS cv_product_links",
+          "review.status AS review_status",
         ])
 .from("candidates", "c")
 .innerJoin(
@@ -1154,14 +1155,13 @@ categorizeCandidateByReviewStatus(
 .innerJoin(
   "recruitment_candidate_manager_review",
   "review",
-  "review.application_id = a.id AND review.reviewer_id = :managerId AND review.pipeline_code COLLATE utf8mb4_unicode_ci = :departmentReviewCode AND review.status = :pendingStatus",
+  "review.application_id = a.id AND review.reviewer_id = :managerId AND review.pipeline_code COLLATE utf8mb4_unicode_ci = :departmentReviewCode",
 )
 .where("c.deleted_at IS NULL")
 .setParameter(
   "departmentReviewCode",
   RECRUITMENT_PIPELINE_CODES.DEPARTMENT_REVIEW,
-)
-.setParameter("pendingStatus", ReviewStatus.PENDING);
+);
       if (fullname) {
         queryBuilder = queryBuilder.andWhere(
           "(c.full_name COLLATE utf8mb4_unicode_ci LIKE :fullname OR a.position COLLATE utf8mb4_unicode_ci LIKE :fullname OR o.position COLLATE utf8mb4_unicode_ci LIKE :fullname)",

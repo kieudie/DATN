@@ -57,6 +57,13 @@ export function categorizeCandidateByReviewStatus(
         r.status === ReviewStatus.PENDING,
     },
     {
+      name: "waitingInterview",
+      condition: (r: RecruitmentCandidateManagerReview) =>
+        managerIdSet.has(r.reviewer_id) &&
+        r.pipeline_code === RECRUITMENT_PIPELINE_CODES.DEPARTMENT_REVIEW &&
+        r.status === ReviewStatus.APPROVE,
+    },
+    {
       name: "needReview",
       condition: (r: RecruitmentCandidateManagerReview) =>
         managerIdSet.has(r.reviewer_id) &&
