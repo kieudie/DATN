@@ -38,146 +38,134 @@ const Login = () => {
     };
     // ─── Kết thúc vùng logic ─────────────────────────────────────────────────
 
+    const styles = {
+        root: { minHeight: '100vh', width: '100%', display: 'flex', fontFamily: "'Inter', sans-serif" },
+        left: {
+            width: '50%', display: 'flex', alignItems: 'center', justifyContent: 'center',
+            padding: '48px', background: 'linear-gradient(160deg, #FDFBFF 0%, #F4EAFC 40%, #EDE0F8 100%)',
+        },
+        card: {
+            width: '100%', maxWidth: 420, background: 'rgba(255,255,255,0.7)',
+            backdropFilter: 'blur(16px)', borderRadius: 28, padding: '40px 36px',
+            boxShadow: '0 8px 40px rgba(160,100,220,0.12), 0 1.5px 4px rgba(0,0,0,0.04)',
+            border: '1px solid rgba(220,200,240,0.5)',
+        },
+        logoWrap: { display: 'flex', justifyContent: 'center', marginBottom: 32 },
+        logoImg: { width: 72, height: 72, objectFit: 'contain', mixBlendMode: 'multiply', filter: 'drop-shadow(0 4px 12px rgba(120,60,200,0.2))' },
+        headingWrap: { textAlign: 'center', marginBottom: 36 },
+        h1: { fontSize: 28, fontWeight: 800, color: '#2D1B4E', margin: '0 0 6px', letterSpacing: -0.3 },
+        sub: { fontSize: 14, color: '#8B7AA0', margin: 0 },
+        form: { display: 'flex', flexDirection: 'column', gap: 20 },
+        label: { display: 'block', fontSize: 13, fontWeight: 600, color: '#3B2C5C', marginBottom: 8 },
+        inputWrap: { position: 'relative', display: 'flex', alignItems: 'center' },
+        icon: { position: 'absolute', left: 16, fontSize: 15, color: '#A87BD8', pointerEvents: 'none', zIndex: 2 },
+        input: {
+            width: '100%', padding: '14px 16px 14px 46px', borderRadius: 16,
+            border: '1.5px solid #E8DAF0', background: '#FFF', fontSize: 14, color: '#2D1B4E',
+            outline: 'none', transition: 'border-color 0.2s, box-shadow 0.2s', fontFamily: 'inherit',
+        },
+        inputPwd: { paddingRight: 48 },
+        eyeBtn: {
+            position: 'absolute', right: 14, background: 'none', border: 'none', cursor: 'pointer',
+            color: '#A87BD8', fontSize: 15, padding: 4, display: 'flex', alignItems: 'center', zIndex: 2,
+        },
+        submit: {
+            width: '100%', padding: '15px 24px', borderRadius: 16, border: 'none',
+            background: 'linear-gradient(135deg, #9C3FE4 0%, #D94FB8 100%)', color: '#FFF',
+            fontSize: 15, fontWeight: 700, cursor: 'pointer', display: 'flex', alignItems: 'center',
+            justifyContent: 'center', gap: 8, marginTop: 8, fontFamily: 'inherit',
+            boxShadow: '0 8px 24px rgba(180,80,210,0.35)', transition: 'opacity 0.2s',
+        },
+        submitDisabled: {
+            background: '#E0CCF0', boxShadow: 'none', cursor: 'not-allowed', opacity: 0.75,
+        },
+        right: {
+            width: '50%', position: 'relative', overflow: 'hidden',
+            display: 'flex', alignItems: 'center', justifyContent: 'center',
+        },
+        rightBg: {
+            position: 'absolute', top: 0, left: 0, width: '100%', height: '100%',
+            objectFit: 'cover', zIndex: 1,
+        },
+    };
+
     return (
-        /* Full-screen background: gradient xanh nhạt → tím nhạt */
-        <div
-            className="min-h-screen flex items-center justify-center p-4"
-            style={{
-                background: 'linear-gradient(135deg, #EFF6FF 0%, #F5F3FF 50%, #EEF2FF 100%)',
-            }}
-        >
-            {/* Card trung tâm */}
-            <div
-                className="w-full bg-white rounded-3xl animate-fadeInUp"
-                style={{
-                    maxWidth: 480,
-                    boxShadow: '0 8px 40px 0 rgba(99, 102, 241, 0.10), 0 2px 8px 0 rgba(0,0,0,0.06)',
-                }}
-            >
-                <div className="p-8 sm:p-10">
+        <>
+            <style>{`
+                @media (max-width: 1023px) {
+                    .login-right-panel { display: none !important; }
+                    .login-left-panel { width: 100% !important; }
+                }
+                @media (max-width: 640px) {
+                    .login-left-panel { padding: 24px 20px !important; }
+                }
+            `}</style>
 
-                    {/* ── Brand icon ── */}
-                    <div className="flex justify-center mb-7">
-                        <div
-                            className="w-14 h-14 rounded-2xl flex items-center justify-center"
-                            style={{
-                                background: 'linear-gradient(135deg, #2563EB 0%, #7C3AED 100%)',
-                                boxShadow: '0 4px 16px rgba(99,102,241,0.30)',
-                            }}
-                        >
-                            <i className="fa-solid fa-briefcase text-white text-xl"></i>
-                        </div>
-                    </div>
-
-                    {/* ── Heading ── */}
-                    <div className="text-center mb-8">
-                        <h1 className="text-xl font-bold text-slate-900 mb-1.5">
-                            Đăng nhập hệ thống
-                        </h1>
-                        <p className="text-sm text-slate-500">
-                            Vui lòng nhập thông tin tài khoản của bạn
-                        </p>
-                    </div>
-
-                    {/* ── Form ── */}
-                    <form onSubmit={handleLogin} className="space-y-4">
-
-                        {/* Email */}
-                        <div>
-                            <label className="block text-xs font-semibold text-slate-500 uppercase tracking-wider mb-1.5">
-                                EMAIL CÁ NHÂN
-                            </label>
-                            <div className="relative">
-                                <span className="absolute inset-y-0 left-0 pl-3.5 flex items-center pointer-events-none">
-                                    <i className="fa-regular fa-envelope text-slate-400 text-sm"></i>
-                                </span>
-                                <input
-                                    type="email"
-                                    required
-                                    value={email}
-                                    onChange={(e) => setEmail(e.target.value)}
-                                    placeholder="name@company.com"
-                                    className="input-field w-full pl-10 pr-4 py-2.5 rounded-xl text-sm text-slate-900 placeholder:text-slate-300 border border-slate-200 focus:bg-white"
-                                    style={{ background: '#F8FAFC' }}
-                                />
-                            </div>
+            <div style={styles.root}>
+                {/* Left: Form */}
+                <div className="login-left-panel" style={styles.left}>
+                    <div style={styles.card}>
+                        <div style={styles.logoWrap}>
+                            <img src="/cg-logo.png" alt="CG Studio" style={styles.logoImg} />
                         </div>
 
-                        {/* Password */}
-                        <div>
-                            <div className="flex items-center justify-between mb-1.5">
-                                <label className="block text-xs font-semibold text-slate-500 uppercase tracking-wider">
-                                    MẬT KHẨU
-                                </label>
-                                <a
-                                    href="#"
-                                    className="text-xs font-medium hover:underline"
-                                    style={{ color: '#2563EB' }}
-                                >
-                                    Quên mật khẩu?
-                                </a>
-                            </div>
-                            <div className="relative">
-                                <span className="absolute inset-y-0 left-0 pl-3.5 flex items-center pointer-events-none">
-                                    <i className="fa-solid fa-lock text-slate-400 text-sm"></i>
-                                </span>
-                                <input
-                                    type={showPassword ? 'text' : 'password'}
-                                    required
-                                    value={password}
-                                    onChange={(e) => setPassword(e.target.value)}
-                                    placeholder="••••••••"
-                                    className="input-field w-full pl-10 pr-11 py-2.5 rounded-xl text-sm text-slate-900 placeholder:text-slate-300 border border-slate-200 focus:bg-white"
-                                    style={{ background: '#F8FAFC' }}
-                                />
-                                <button
-                                    type="button"
-                                    onClick={togglePass}
-                                    tabIndex={-1}
-                                    className="absolute inset-y-0 right-0 pr-3.5 flex items-center text-slate-400 hover:text-slate-600 transition-colors"
-                                >
-                                    <i className={`fa-regular ${showPassword ? 'fa-eye-slash' : 'fa-eye'} text-sm`}></i>
-                                </button>
-                            </div>
+                        <div style={styles.headingWrap}>
+                            <h1 style={styles.h1}>Đăng nhập</h1>
+                            <p style={styles.sub}>Chào mừng bạn trở lại</p>
                         </div>
 
-                        {/* Submit button */}
-                        <button
-                            type="submit"
-                            disabled={isLoading}
-                            className="w-full py-2.5 px-4 rounded-xl text-white text-sm font-semibold flex items-center justify-center gap-2 mt-2 transition-opacity"
-                            style={{
-                                background: isLoading
-                                    ? 'linear-gradient(135deg, #93C5FD 0%, #C4B5FD 100%)'
-                                    : 'linear-gradient(135deg, #2563EB 0%, #7C3AED 100%)',
-                                boxShadow: isLoading ? 'none' : '0 4px 14px rgba(99,102,241,0.35)',
-                                cursor: isLoading ? 'not-allowed' : 'pointer',
-                                opacity: isLoading ? 0.8 : 1,
-                            }}
-                        >
-                            {isLoading ? (
-                                <>
-                                    <i className="fa-solid fa-circle-notch animate-spin text-sm"></i>
-                                    <span>Đang đăng nhập...</span>
-                                </>
-                            ) : (
-                                <>
+                        <form onSubmit={handleLogin} style={styles.form}>
+                            <div>
+                                <label style={styles.label}>Email *</label>
+                                <div style={styles.inputWrap}>
+                                    <i className="fa-regular fa-envelope" style={styles.icon}></i>
+                                    <input
+                                        type="email" required value={email}
+                                        onChange={(e) => setEmail(e.target.value)}
+                                        placeholder="name@cgstudio.com.vn"
+                                        style={styles.input}
+                                    />
+                                </div>
+                            </div>
+
+                            <div>
+                                <label style={styles.label}>Mật khẩu *</label>
+                                <div style={styles.inputWrap}>
+                                    <i className="fa-solid fa-lock" style={styles.icon}></i>
+                                    <input
+                                        type={showPassword ? 'text' : 'password'}
+                                        required value={password}
+                                        onChange={(e) => setPassword(e.target.value)}
+                                        placeholder="••••••••"
+                                        style={{ ...styles.input, ...styles.inputPwd }}
+                                    />
+                                    <button type="button" onClick={togglePass} tabIndex={-1} style={styles.eyeBtn}>
+                                        <i className={`fa-regular ${showPassword ? 'fa-eye-slash' : 'fa-eye'}`}></i>
+                                    </button>
+                                </div>
+                            </div>
+
+                            <button
+                                type="submit" disabled={isLoading}
+                                style={isLoading ? { ...styles.submit, ...styles.submitDisabled } : styles.submit}
+                            >
+                                {isLoading ? (
+                                    <><i className="fa-solid fa-circle-notch fa-spin"></i><span>Đang đăng nhập...</span></>
+                                ) : (
                                     <span>Đăng nhập</span>
-                                    <i className="fa-solid fa-arrow-right text-sm"></i>
-                                </>
-                            )}
-                        </button>
-                    </form>
+                                )}
+                            </button>
+                        </form>
+                    </div>
+                </div>
 
-                    {/* Footer note */}
-                    <p className="mt-6 text-center text-xs text-slate-400">
-                        Hệ thống quản lý tuyển dụng &mdash; Chào mừng bạn
-                    </p>
+                {/* Right: Background image only (image already contains all branding) */}
+                <div className="login-right-panel" style={styles.right}>
+                    <img src="/login-bg-right.png" alt="" style={styles.rightBg} />
                 </div>
             </div>
-        </div>
+        </>
     );
 };
 
 export default Login;
-

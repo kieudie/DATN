@@ -265,8 +265,8 @@ const Layout = ({ children }) => {
             )}
             <aside className={`lyt-sidebar ${isSidebarOpen ? 'lyt-sidebar--mobile-open' : ''} ${isSidebarCollapsed ? 'lyt-sidebar--collapsed' : ''}`}>
                 <div className="lyt-brand">
-                    <div className="lyt-brand-icon">
-                        <i className="fa-solid fa-gamepad"></i>
+                    <div className="lyt-brand-icon" style={{ background: 'transparent', width: '40px', height: '40px', padding: 0 }}>
+                        <img src="/cg-logo.png" alt="CG Studio" style={{ width: '100%', height: '100%', objectFit: 'contain', mixBlendMode: 'multiply' }} />
                     </div>
 
                     <div style={{ minWidth: 0 }}>
