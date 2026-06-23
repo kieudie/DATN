@@ -555,10 +555,10 @@ const RecruitmentPipeline = () => {
     const [note1, setNote1] = useState('');
     const [note2, setNote2] = useState('');
     const [note3, setNote3] = useState('');
-    const [address, setAddress] = useState('Tầng 8, tòa nhà Gold Tower, số 275 Nguyễn Trãi, Thanh Xuân, Hà Nội');
+    const [address, setAddress] = useState('Tầng 12 tòa nhà Nam Cường Building, Phường Dương Nội, Hà Nội');
     const [testDate, setTestDate] = useState('');
     const [interviewDate, setInterviewDate] = useState('');
-    const [contact, setContact] = useState('Bộ phận Tuyển dụng HR - SĐT: (+84) 984578828');
+    const [contact, setContact] = useState('Bộ phận Tuyển dụng HR - SĐT: 0971706853');
     const [mapLink, setMapLink] = useState('https://maps.app.goo.gl/xyz123');
     const [cc, setCc] = useState('');
     const [offerDate, setOfferDate] = useState('');
@@ -742,10 +742,10 @@ const RecruitmentPipeline = () => {
         setNote1('');
         setNote2('');
         setNote3('');
-        setAddress('Tầng 8, tòa nhà Gold Tower, số 275 Nguyễn Trãi, Thanh Xuân, Hà Nội');
+        setAddress('Tầng 12 tòa nhà Nam Cường Building, Phường Dương Nội, Hà Nội');
         setTestDate('');
         setInterviewDate('');
-        setContact('Bộ phận Tuyển dụng HR - SĐT: (+84) 984578828');
+        setContact('Bộ phận Tuyển dụng HR - SĐT: 0971706853');
         setMapLink('https://maps.app.goo.gl/xyz123');
         setCc('');
         setOfferDate('');
@@ -1315,7 +1315,6 @@ const RecruitmentPipeline = () => {
                                                                 {renderField('Thời gian test', testDate, setTestDate, 'Thứ Sáu, ngày 12/06/2026, lúc 15h')}
                                                                 {renderField('Địa điểm', address, setAddress)}
                                                                 {renderField('Người liên hệ', contact, setContact)}
-                                                                {renderField('Google Maps link', mapLink, setMapLink)}
                                                             </>
                                                         )}
 
