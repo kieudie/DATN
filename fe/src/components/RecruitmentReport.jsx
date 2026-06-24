@@ -511,6 +511,7 @@ const RecruitmentReport = () => {
   const fetchReport = useCallback(async (type, sd, ed) => {
     setLoading(true); setError(''); setData(null);
     try {
+
       if (EFFECTIVENESS_TYPES.includes(type)) {
         const total = await fetchOverviewCount(sd, ed);
         setOverviewTotalReceived(total);

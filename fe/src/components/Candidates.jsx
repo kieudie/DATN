@@ -115,7 +115,8 @@ const Candidates = ({ menus, user }) => {
         thinkingTest: '',
         testOnlineStatus: '',
         pipelineHistory: [],
-        managerReview: null
+        managerReview: null,
+        allApplications: []
     });
 
     const filterOptions = {
@@ -487,6 +488,54 @@ const Candidates = ({ menus, user }) => {
         }
     };
 
+    /**
+     * Resolve position text (legacy data) to order ID.
+     * If app.position is already an order ID, keep it.
+     * If it's a text name, try matching against positions list.
+     */
+    const resolvePositionToOrderId = (appPosition, appDepartment) => {
+        if (!appPosition) return { position: '', department: appDepartment || '' };
+
+        const posStr = String(appPosition).trim();
+
+        // 1. Already an order ID — matches a position in the list by id
+        const matchById = positions.find(p => String(p.id) === posStr);
+        if (matchById) {
+            return {
+                position: posStr,
+                department: matchById.team || appDepartment || ''
+            };
+        }
+
+        // 2. Exact match by position name (case-insensitive, trimmed)
+        const posLower = posStr.toLowerCase();
+        const matchExact = positions.find(p =>
+            (p.position || '').toLowerCase().trim() === posLower
+        );
+        if (matchExact) {
+            return {
+                position: String(matchExact.id),
+                department: matchExact.team || appDepartment || ''
+            };
+        }
+
+        // 3. Partial / contains match (either direction)
+        const matchPartial = positions.find(p => {
+            const orderPos = (p.position || '').toLowerCase().trim();
+            if (!orderPos) return false;
+            return posLower.includes(orderPos) || orderPos.includes(posLower);
+        });
+        if (matchPartial) {
+            return {
+                position: String(matchPartial.id),
+                department: matchPartial.team || appDepartment || ''
+            };
+        }
+
+        // 4. No match — keep original text so user can re-select manually
+        return { position: posStr, department: appDepartment || '' };
+    };
+
     const handleEdit = async (candidate) => {
         const token = localStorage.getItem('access_token');
         try {
@@ -530,9 +579,14 @@ const Candidates = ({ menus, user }) => {
                     gender: normalizedGender,
                     birthday: data.birthday || '',
                     appliedDate: app.appliedDate || new Date().toISOString(),
-                    position: app.position || '',
+                    ...(() => {
+                        const resolved = resolvePositionToOrderId(app.position, app.department);
+                        return {
+                            position: resolved.position,
+                            department: resolved.department
+                        };
+                    })(),
                     level: app.level || '',
-                    department: app.department || '',
                     source: app.source || '',
                     status: app.status || 'received_cv',
                     filePath: cv.filePath || '',
@@ -544,7 +598,8 @@ const Candidates = ({ menus, user }) => {
                     thinkingTest: app.thinkingTest || '',
                     testOnlineStatus: app.testOnlineStatus || '',
                     pipelineHistory: app.pipelineHistory || [],
-                    managerReview: mgrReview
+                    managerReview: mgrReview,
+                    allApplications: data.applications || []
                 });
                 setIsEditing(true);
                 setIsQuickCreateOpen(true);
@@ -876,7 +931,8 @@ const Candidates = ({ menus, user }) => {
                                     techTest: '',
                                     thinkingTest: '',
                                     testOnlineStatus: '',
-                                    managerReview: null
+                                    managerReview: null,
+                                    allApplications: []
                                 });
                                 setIsQuickCreateOpen(true);
                             }}
@@ -945,7 +1001,15 @@ const Candidates = ({ menus, user }) => {
                                         <td className="px-6 py-5 text-sm font-medium text-gray-400">{globalIndex + 1}</td>
                                         <td className="px-6 py-5">
                                             <div>
-                                                <p className="text-sm font-bold text-gray-900 group-hover:text-brand-600 transition-colors">{candidate.fullName}</p>
+                                                <div className="flex items-center gap-2">
+                                                    <p className="text-sm font-bold text-gray-900 group-hover:text-brand-600 transition-colors">{candidate.fullName}</p>
+                                                    {(candidate.applications?.length || 0) > 1 && (
+                                                        <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full bg-violet-50 text-violet-600 border border-violet-100 text-[10px] font-bold whitespace-nowrap">
+                                                            <i className="fa-solid fa-layer-group text-[8px]"></i>
+                                                            {candidate.applications.length} vị trí
+                                                        </span>
+                                                    )}
+                                                </div>
                                                 <p className="text-[10px] text-gray-400 mt-0.5">ID: {candidate.id}</p>
                                                 <p className="text-[10px] text-gray-400">{candidate.phone} • {candidate.email}</p>
                                             </div>
@@ -1393,6 +1457,62 @@ const Candidates = ({ menus, user }) => {
                                                     ))}
                                                 </div>
                                             )}
+                                        </section>
+                                    )}
+
+                                    {/* 7. Các vị trí đã ứng tuyển */}
+                                    {isEditing && quickCreateForm.allApplications?.length > 1 && (
+                                        <section className="bg-white border border-gray-100 rounded-2xl p-6 shadow-sm">
+                                            <h3 className="text-sm font-bold text-violet-600 mb-4 flex items-center gap-2">
+                                                <i className="fa-solid fa-layer-group"></i>
+                                                Các vị trí đã ứng tuyển
+                                                <span className="ml-auto text-[10px] font-bold text-violet-500 bg-violet-50 border border-violet-100 px-2 py-0.5 rounded-full">
+                                                    {quickCreateForm.allApplications.length} hồ sơ
+                                                </span>
+                                            </h3>
+                                            <div className="space-y-3">
+                                                {quickCreateForm.allApplications.map((appItem, idx) => {
+                                                    const isCurrentApp = appItem.id === editingIds.applicationId;
+                                                    const orderInfo = appItem.orderInfo;
+                                                    const posDisplay = orderInfo?.position || appItem.position || '—';
+                                                    const teamDisplay = orderInfo?.team || appItem.department || '—';
+                                                    return (
+                                                        <div
+                                                            key={appItem.id || idx}
+                                                            className={`p-4 rounded-xl border transition-all ${
+                                                                isCurrentApp
+                                                                    ? 'bg-violet-50 border-violet-200 shadow-sm'
+                                                                    : 'bg-slate-50 border-gray-100 hover:border-gray-200'
+                                                            }`}
+                                                        >
+                                                            <div className="flex items-start justify-between gap-3">
+                                                                <div className="flex-1 min-w-0">
+                                                                    <div className="flex items-center gap-2 mb-1.5">
+                                                                        <span className="text-sm font-bold text-gray-800 truncate">{posDisplay}</span>
+                                                                        {isCurrentApp && (
+                                                                            <span className="text-[9px] font-bold text-violet-600 bg-violet-100 px-1.5 py-0.5 rounded-md uppercase whitespace-nowrap">Đang sửa</span>
+                                                                        )}
+                                                                    </div>
+                                                                    <div className="flex flex-wrap items-center gap-x-4 gap-y-1 text-[11px] text-gray-500">
+                                                                        <span className="flex items-center gap-1"><i className="fa-solid fa-building text-[9px]"></i> {teamDisplay}</span>
+                                                                        {appItem.level && <span className="flex items-center gap-1"><i className="fa-solid fa-layer-group text-[9px]"></i> {appItem.level}</span>}
+                                                                        {appItem.source && <span className="flex items-center gap-1"><i className="fa-solid fa-bullhorn text-[9px]"></i> {appItem.source}</span>}
+                                                                        {appItem.appliedDate && <span className="flex items-center gap-1"><i className="fa-regular fa-calendar text-[9px]"></i> {new Date(appItem.appliedDate).toLocaleDateString('vi-VN')}</span>}
+                                                                    </div>
+                                                                </div>
+                                                                <span className={`flex-shrink-0 px-2.5 py-1 text-[10px] font-bold rounded-lg border whitespace-nowrap ${
+                                                                    appItem.status === 'onboarding' ? 'bg-emerald-50 text-emerald-600 border-emerald-100' :
+                                                                    appItem.status === 'fail' ? 'bg-red-50 text-red-600 border-red-100' :
+                                                                    appItem.status === 'offer' ? 'bg-green-50 text-green-600 border-green-100' :
+                                                                    'bg-blue-50 text-blue-600 border-blue-100'
+                                                                }`}>
+                                                                    {PIPELINE_LABELS[appItem.status] || appItem.pipelineInfo?.name || appItem.status || '—'}
+                                                                </span>
+                                                            </div>
+                                                        </div>
+                                                    );
+                                                })}
+                                            </div>
                                         </section>
                                     )}
 
